@@ -11193,10 +11193,20 @@ function SmSelect({label, placeholder, options, value, onSelect, disabled, disab
 // primero elegir el área para desbloquear el segundo desplegable filtrado por esa área.
 // El consecutivo mostrado es una PREVISUALIZACIÓN (no reserva el número); el número
 // definitivo se asigna recién al guardar la solicitud (siguiente paso).
-function SolicitudesMetrologiaApp({onBack, initialUser}){
+function CrearSolicitudScreen({onBack, initialUser}){
   const anioActual = new Date().getFullYear();
   const [consecutivo, setConsecutivo] = useState(null);
   const [loadingCons, setLoadingCons] = useState(true);
+
+  const nombreUsuario = (initialUser && (initialUser.nombre || initialUser.username)) || "—";
+  const [ahora, setAhora] = useState(new Date());
+  useEffect(function(){
+    var id = setInterval(function(){ setAhora(new Date()); }, 1000);
+    return function(){ clearInterval(id); };
+  },[]);
+  function pad2(n){ return n<10 ? "0"+n : ""+n; }
+  const fechaTexto = pad2(ahora.getDate())+"/"+pad2(ahora.getMonth()+1)+"/"+pad2(ahora.getFullYear()%100);
+  const horaTexto = pad2(ahora.getHours())+":"+pad2(ahora.getMinutes());
 
   const [loadingListas, setLoadingListas] = useState(true);
   const [eqs, setEqs] = useState(AREAS_DEF);
@@ -11291,6 +11301,9 @@ function SolicitudesMetrologiaApp({onBack, initialUser}){
         .sm-hdr-logo{height:40px;width:auto;display:block;border-radius:10px;flex-shrink:0;}
         .sm-hdr-title{font-family:Montserrat,sans-serif;font-weight:800;font-size:14px;color:#fff;letter-spacing:0.3px;}
         .sm-hdr-sub{font-family:Montserrat,sans-serif;font-size:9px;color:rgba(255,255,255,0.45);letter-spacing:1.5px;text-transform:uppercase;margin-top:1px;}
+        .sm-hdr-meta{margin-left:auto;text-align:right;flex-shrink:0;}
+        .sm-hdr-user{font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:38vw;}
+        .sm-hdr-datetime{font-family:Montserrat,sans-serif;font-size:10.5px;color:rgba(255,255,255,0.55);white-space:nowrap;margin-top:1px;}
         .sm-cons-card{background:#fff;border-radius:16px;padding:20px 24px;margin:16px 20px;box-shadow:0 1px 8px rgba(13,47,92,0.08);text-align:center;}
         .sm-cons-label{font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:1px;}
         .sm-cons-value{font-family:Montserrat,sans-serif;font-weight:800;font-size:34px;color:var(--navy);letter-spacing:1px;margin-top:4px;}
@@ -11308,11 +11321,15 @@ function SolicitudesMetrologiaApp({onBack, initialUser}){
       `}</style>
 
       <div className="sm-hdr">
-        {onBack&&<button className="sm-hdr-back" onClick={onBack}>← Suite</button>}
+        {onBack&&<button className="sm-hdr-back" onClick={onBack}>← Volver</button>}
         <img className="sm-hdr-logo" src={LOGO_SRC} alt="Bussié"/>
         <div>
-          <div className="sm-hdr-title">Solicitudes de Mantenimiento</div>
-          <div className="sm-hdr-sub">Bussié</div>
+          <div className="sm-hdr-title">Crear Solicitud</div>
+          <div className="sm-hdr-sub">Bussié · Solicitudes de Mantenimiento</div>
+        </div>
+        <div className="sm-hdr-meta">
+          <div className="sm-hdr-user">{nombreUsuario}</div>
+          <div className="sm-hdr-datetime">{fechaTexto} · {horaTexto}</div>
         </div>
       </div>
 
@@ -11429,6 +11446,97 @@ function SolicitudesMetrologiaApp({onBack, initialUser}){
         )}
 
         {tipo && <div className="sm-req-note">Todos los campos son obligatorios.</div>}
+      </div>
+    </div>
+  );
+}
+
+// ── Placeholders de los otros submódulos (se construyen en un paso siguiente) ─
+function SmComingSoon({onBack, titulo, subtitulo, icon}){
+  return(
+    <div style={{minHeight:"100vh",background:"var(--lighter)",paddingBottom:40}}>
+      <div className="sm-hdr">
+        {onBack&&<button className="sm-hdr-back" onClick={onBack}>← Volver</button>}
+        <img className="sm-hdr-logo" src={LOGO_SRC} alt="Bussié"/>
+        <div>
+          <div className="sm-hdr-title">{titulo}</div>
+          <div className="sm-hdr-sub">Bussié · Solicitudes de Mantenimiento</div>
+        </div>
+      </div>
+      <div style={{textAlign:"center",padding:"70px 24px"}}>
+        <div style={{fontSize:42,marginBottom:12}}>{icon}</div>
+        <div style={{fontFamily:"Montserrat,sans-serif",fontWeight:800,fontSize:15,color:"var(--navy)"}}>Próximamente</div>
+        <div style={{fontSize:13,color:"var(--gray)",marginTop:6,maxWidth:280,margin:"6px auto 0"}}>{subtitulo}</div>
+      </div>
+    </div>
+  );
+}
+function GestionSolicitudesScreen({onBack}){
+  return <SmComingSoon onBack={onBack} titulo="Gestión de Solicitudes" icon="🗂️"
+    subtitulo="Acá se van a poder administrar y dar trámite a las solicitudes recibidas."/>;
+}
+function EstadoSolicitudesScreen({onBack}){
+  return <SmComingSoon onBack={onBack} titulo="Estado de Solicitudes" icon="📊"
+    subtitulo="Acá se va a poder consultar y hacer seguimiento al estado de cada solicitud."/>;
+}
+
+// ── Solicitudes de Mantenimiento — selector de submódulos ────────────────────
+function SolicitudesMetrologiaApp({onBack, initialUser}){
+  const [sub, setSub] = useState(null); // 'crear' | 'gestion' | 'estado'
+
+  if(sub==="crear") return <CrearSolicitudScreen onBack={function(){setSub(null);}} initialUser={initialUser}/>;
+  if(sub==="gestion") return <GestionSolicitudesScreen onBack={function(){setSub(null);}} initialUser={initialUser}/>;
+  if(sub==="estado") return <EstadoSolicitudesScreen onBack={function(){setSub(null);}} initialUser={initialUser}/>;
+
+  const subs = [
+    {id:"crear", icon:"📝", label:"Crear Solicitud", desc:"Registrar una nueva solicitud de mantenimiento"},
+    {id:"gestion", icon:"🗂️", label:"Gestión de Solicitudes", desc:"Administrar y dar trámite a las solicitudes"},
+    {id:"estado", icon:"📊", label:"Estado de Solicitudes", desc:"Consultar el seguimiento de cada solicitud"}
+  ];
+
+  return(
+    <div style={{minHeight:"100vh",background:"var(--lighter)",paddingBottom:40}}>
+      <style>{`
+        .sm-hdr{background:var(--navy);padding:14px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:60;box-shadow:0 2px 12px rgba(13,47,92,0.28);}
+        .sm-hdr-back{background:rgba(255,255,255,0.12);border:none;border-radius:8px;color:#fff;cursor:pointer;padding:6px 10px;display:flex;align-items:center;gap:5px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;flex-shrink:0;}
+        .sm-hdr-logo{height:40px;width:auto;display:block;border-radius:10px;flex-shrink:0;}
+        .sm-hdr-title{font-family:Montserrat,sans-serif;font-weight:800;font-size:14px;color:#fff;letter-spacing:0.3px;}
+        .sm-hdr-sub{font-family:Montserrat,sans-serif;font-size:9px;color:rgba(255,255,255,0.45);letter-spacing:1.5px;text-transform:uppercase;margin-top:1px;}
+        .sm-body{margin:0 20px;}
+        .sm-section-title{font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:1px;opacity:0.7;margin:18px 2px 10px;}
+        .sm-sub-card{background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:all .15s;}
+        .sm-sub-card:active{transform:scale(0.98);}
+        .sm-sub-icon{font-size:26px;flex-shrink:0;}
+        .sm-sub-label{font-family:Montserrat,sans-serif;font-weight:800;font-size:14px;color:var(--navy);}
+        .sm-sub-desc{font-size:12px;color:var(--gray);margin-top:2px;}
+        .sm-sub-chev{margin-left:auto;color:var(--gray);font-size:20px;flex-shrink:0;}
+      `}</style>
+
+      <div className="sm-hdr">
+        {onBack&&<button className="sm-hdr-back" onClick={onBack}>← Suite</button>}
+        <img className="sm-hdr-logo" src={LOGO_SRC} alt="Bussié"/>
+        <div>
+          <div className="sm-hdr-title">Solicitudes de Mantenimiento</div>
+          <div className="sm-hdr-sub">Bussié</div>
+        </div>
+      </div>
+
+      <div className="sm-body">
+        <div className="sm-section-title">¿Qué querés hacer?</div>
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          {subs.map(function(s){
+            return (
+              <div key={s.id} className="sm-sub-card" onClick={function(){setSub(s.id);}}>
+                <div className="sm-sub-icon">{s.icon}</div>
+                <div>
+                  <div className="sm-sub-label">{s.label}</div>
+                  <div className="sm-sub-desc">{s.desc}</div>
+                </div>
+                <div className="sm-sub-chev">›</div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

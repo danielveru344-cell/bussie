@@ -11220,6 +11220,13 @@ function CrearSolicitudScreen({onBack, initialUser}){
   const [metAreaSel, setMetAreaSel] = useState("");  // tipo=instrumento: key de área elegida
   const [metSel, setMetSel] = useState("");          // tipo=instrumento: instrumento elegido (raw)
   const [descripcion, setDescripcion] = useState(""); // campo abierto, obligatorio
+  const [enviando, setEnviando] = useState(false);
+  const [toast, setToast] = useState(null);
+  const flash = function(msg, ok){
+    if(ok===undefined) ok=true;
+    setToast({msg:msg, ok:ok});
+    setTimeout(function(){ setToast(null); }, 2800);
+  };
 
   async function cargarConsecutivo(){
     setLoadingCons(true);
@@ -11251,6 +11258,67 @@ function CrearSolicitudScreen({onBack, initialUser}){
   }
 
   useEffect(function(){ cargarConsecutivo(); cargarListas(); },[]);
+
+  function validar(){
+    if(!tipo) return "Elegí sobre qué es la solicitud.";
+    if(tipo==="area" && !areaSel) return "Seleccioná el área.";
+    if(tipo==="equipo" && !eqAreaSel) return "Seleccioná el área.";
+    if(tipo==="equipo" && !eqSel) return "Seleccioná el equipo.";
+    if(tipo==="instrumento" && !metAreaSel) return "Seleccioná el área.";
+    if(tipo==="instrumento" && !metSel) return "Seleccioná el instrumento.";
+    if(!descripcion.trim()) return "Escribí la descripción de la solicitud.";
+    return null;
+  }
+
+  async function enviarSolicitud(){
+    var err = validar();
+    if(err){ flash(err, false); return; }
+    setEnviando(true);
+    try{
+      var areaCodigo = "", areaNombre = "", itemCodigo = null, itemNombre = null;
+
+      if(tipo==="area"){
+        var pa = smParseAreaLoc(areaSel);
+        areaCodigo = pa.codigo; areaNombre = pa.nombre;
+      } else if(tipo==="equipo"){
+        var gEq = equipoGroups.find(function(g){return g.key===eqAreaSel;});
+        areaCodigo = eqAreaSel; areaNombre = gEq ? gEq.label : eqAreaSel;
+        var pEq = smParseCodeName(eqSel);
+        itemCodigo = pEq.code; itemNombre = pEq.name || eqSel;
+      } else if(tipo==="instrumento"){
+        var gMet = metGroups.find(function(g){return g.key===metAreaSel;});
+        areaCodigo = metAreaSel; areaNombre = gMet ? gMet.label : metAreaSel;
+        var pMet = smParseCodeName(metSel);
+        itemCodigo = pMet.code; itemNombre = pMet.name || metSel;
+      }
+
+      // Consecutivo definitivo: recién ahora se reserva de verdad (atómico)
+      const {data:cons, error:consErr} = await sb.rpc("siguiente_consecutivo_solicitud_metrologia", {p_anio: anioActual});
+      if(consErr) throw consErr;
+
+      const {error:insErr} = await sb.from("solicitudes_mantenimiento").insert([{
+        consecutivo: cons,
+        anio: anioActual,
+        tipo: tipo,
+        area_codigo: areaCodigo,
+        area_nombre: areaNombre,
+        item_codigo: itemCodigo,
+        item_nombre: itemNombre,
+        descripcion: descripcion.trim(),
+        solicitante: nombreUsuario
+      }]);
+      if(insErr) throw insErr;
+
+      flash("Solicitud "+cons+" enviada ✓", true);
+      setTipo(null); setAreaSel(""); setEqAreaSel(""); setEqSel("");
+      setMetAreaSel(""); setMetSel(""); setDescripcion("");
+      cargarConsecutivo();
+    }catch(ex){
+      console.error("Error guardando la solicitud", ex);
+      flash("No se pudo enviar la solicitud. Intentá de nuevo.", false);
+    }
+    setEnviando(false);
+  }
 
   function elegirTipo(t){
     setTipo(t);
@@ -11446,7 +11514,30 @@ function CrearSolicitudScreen({onBack, initialUser}){
         )}
 
         {tipo && <div className="sm-req-note">Todos los campos son obligatorios.</div>}
+
+        {tipo && !loadingListas && (
+          <button
+            type="button"
+            disabled={enviando}
+            onClick={enviarSolicitud}
+            style={{
+              width:"100%",marginTop:16,padding:"14px",border:"none",borderRadius:12,
+              background: enviando ? "#b9a3e0" : "#5E2B9E",color:"#fff",
+              fontFamily:"Montserrat,sans-serif",fontWeight:800,fontSize:14,
+              cursor: enviando?"not-allowed":"pointer",boxShadow:"0 4px 16px rgba(94,43,158,0.32)"
+            }}
+          >
+            {enviando ? "Enviando…" : "Enviar solicitud"}
+          </button>
+        )}
       </div>
+
+      {toast&&(
+        <div className="toast">
+          <span>{toast.ok?"✓":"✗"}</span>
+          {toast.msg}
+        </div>
+      )}
     </div>
   );
 }

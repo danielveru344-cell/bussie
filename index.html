@@ -11209,6 +11209,7 @@ function SolicitudesMetrologiaApp({onBack, initialUser}){
   const [eqSel, setEqSel] = useState("");            // tipo=equipo: equipo elegido (raw)
   const [metAreaSel, setMetAreaSel] = useState("");  // tipo=instrumento: key de área elegida
   const [metSel, setMetSel] = useState("");          // tipo=instrumento: instrumento elegido (raw)
+  const [descripcion, setDescripcion] = useState(""); // campo abierto, obligatorio
 
   async function cargarConsecutivo(){
     setLoadingCons(true);
@@ -11243,7 +11244,7 @@ function SolicitudesMetrologiaApp({onBack, initialUser}){
 
   function elegirTipo(t){
     setTipo(t);
-    setAreaSel(""); setEqAreaSel(""); setEqSel(""); setMetAreaSel(""); setMetSel("");
+    setAreaSel(""); setEqAreaSel(""); setEqSel(""); setMetAreaSel(""); setMetSel(""); setDescripcion("");
   }
 
   // Opciones para el tipo "Área": todo el listado de áreas (buscar por código o palabra)
@@ -11405,6 +11406,23 @@ function SolicitudesMetrologiaApp({onBack, initialUser}){
                 onSelect={setMetSel}
                 disabled={!metAreaSel}
                 disabledHint="Seleccioná primero el área"
+              />
+            </div>
+          </React.Fragment>
+        )}
+
+        {tipo && !loadingListas && (
+          <React.Fragment>
+            <div className="sm-section-title">Descripción</div>
+            <div className="sm-field">
+              <div className="ios-input-label">Descripción de la solicitud <span style={{color:"#C0001A"}}>*</span></div>
+              <textarea
+                className="ios-input"
+                rows={4}
+                placeholder="Escribí el detalle de la solicitud…"
+                value={descripcion}
+                onChange={function(e){ setDescripcion(e.target.value); }}
+                style={{resize:"vertical",fontFamily:"inherit"}}
               />
             </div>
           </React.Fragment>

@@ -11071,6 +11071,13 @@ function smParseAreaLoc(str){
 function smNormaliza(s){
   return (s||"").toString().normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 }
+function smFormatFechaHora(iso){
+  if(!iso) return "—";
+  var d = new Date(iso);
+  if(isNaN(d.getTime())) return "—";
+  function pad2(n){ return n<10 ? "0"+n : ""+n; }
+  return pad2(d.getDate())+"/"+pad2(d.getMonth()+1)+"/"+pad2(d.getFullYear()%100)+" · "+pad2(d.getHours())+":"+pad2(d.getMinutes());
+}
 function smFriendlyAreaLabel(areaCode, locList){
   var m = areaCode.match(/(\d+)$/);
   if(m){
@@ -11138,7 +11145,7 @@ function SmSelect({label, placeholder, options, value, onSelect, disabled, disab
         }}
       >
         <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-          {selected ? selected.label : (disabled ? (disabledHint||"Seleccioná primero el área") : placeholder)}
+          {selected ? selected.label : (disabled ? (disabledHint||"Selecciona primero el área") : placeholder)}
         </span>
         <span style={{opacity:0.5,flexShrink:0}}>▾</span>
       </button>
@@ -11260,13 +11267,13 @@ function CrearSolicitudScreen({onBack, initialUser}){
   useEffect(function(){ cargarConsecutivo(); cargarListas(); },[]);
 
   function validar(){
-    if(!tipo) return "Elegí sobre qué es la solicitud.";
-    if(tipo==="area" && !areaSel) return "Seleccioná el área.";
-    if(tipo==="equipo" && !eqAreaSel) return "Seleccioná el área.";
-    if(tipo==="equipo" && !eqSel) return "Seleccioná el equipo.";
-    if(tipo==="instrumento" && !metAreaSel) return "Seleccioná el área.";
-    if(tipo==="instrumento" && !metSel) return "Seleccioná el instrumento.";
-    if(!descripcion.trim()) return "Escribí la descripción de la solicitud.";
+    if(!tipo) return "Elige sobre qué es la solicitud.";
+    if(tipo==="area" && !areaSel) return "Selecciona el área.";
+    if(tipo==="equipo" && !eqAreaSel) return "Selecciona el área.";
+    if(tipo==="equipo" && !eqSel) return "Selecciona el equipo.";
+    if(tipo==="instrumento" && !metAreaSel) return "Selecciona el área.";
+    if(tipo==="instrumento" && !metSel) return "Selecciona el instrumento.";
+    if(!descripcion.trim()) return "Escribe la descripción de la solicitud.";
     return null;
   }
 
@@ -11459,7 +11466,7 @@ function CrearSolicitudScreen({onBack, initialUser}){
                 value={eqSel}
                 onSelect={setEqSel}
                 disabled={!eqAreaSel}
-                disabledHint="Seleccioná primero el área"
+                disabledHint="Selecciona primero el área"
               />
             </div>
           </React.Fragment>
@@ -11490,7 +11497,7 @@ function CrearSolicitudScreen({onBack, initialUser}){
                 value={metSel}
                 onSelect={setMetSel}
                 disabled={!metAreaSel}
-                disabledHint="Seleccioná primero el área"
+                disabledHint="Selecciona primero el área"
               />
             </div>
           </React.Fragment>
@@ -11504,7 +11511,7 @@ function CrearSolicitudScreen({onBack, initialUser}){
               <textarea
                 className="ios-input"
                 rows={4}
-                placeholder="Escribí el detalle de la solicitud…"
+                placeholder="Escribe el detalle de la solicitud…"
                 value={descripcion}
                 onChange={function(e){ setDescripcion(e.target.value); }}
                 style={{resize:"vertical",fontFamily:"inherit"}}
@@ -11562,13 +11569,178 @@ function SmComingSoon({onBack, titulo, subtitulo, icon}){
     </div>
   );
 }
+// ── Gestión de Solicitudes ────────────────────────────────────────────────────
+const SM_ESTADOS = ["abierta", "asignada", "rechazada", "cerrada"];
+const SM_ESTADO_META = {
+  abierta:   {label:"Abierta",   color:"#2d7dd2", bg:"#E4F0FC"},
+  asignada:  {label:"Asignada",  color:"#C45200", bg:"#FFE8D9"},
+  rechazada: {label:"Rechazada", color:"#C0001A", bg:"#FCE4E7"},
+  cerrada:   {label:"Cerrada",   color:"#1D7A3E", bg:"#E1F5E9"}
+};
+
+function smResumenSolicitud(s){
+  if(s.tipo==="area") return s.area_nombre || "—";
+  var base = s.area_nombre ? (s.area_nombre+" — ") : "";
+  return base + (s.item_nombre || "—");
+}
+
 function GestionSolicitudesScreen({onBack}){
-  return <SmComingSoon onBack={onBack} titulo="Gestión de Solicitudes" icon="🗂️"
-    subtitulo="Acá se van a poder administrar y dar trámite a las solicitudes recibidas."/>;
+  const [solicitudes, setSolicitudes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [tecnicos, setTecnicos] = useState([]);
+  const [filtroEstado, setFiltroEstado] = useState("");
+  const [filtroAsignado, setFiltroAsignado] = useState("");
+  const [savingId, setSavingId] = useState(null);
+
+  async function cargarSolicitudes(){
+    setLoading(true);
+    try{
+      const {data, error} = await sb.from("solicitudes_mantenimiento").select("*").order("enviado_en",{ascending:false});
+      if(error) throw error;
+      setSolicitudes(data||[]);
+    }catch(ex){
+      console.warn("No se pudieron cargar las solicitudes", ex);
+      setSolicitudes([]);
+    }
+    setLoading(false);
+  }
+
+  async function cargarTecnicos(){
+    try{
+      const raw = await btkGet(KS.tec);
+      const list = (raw!==null ? raw : lg(KS.tec, []));
+      setTecnicos(list.length>0 && typeof list[0]==="string" ? [] : list);
+    }catch(ex){
+      console.warn("No se pudo cargar la lista de técnicos", ex);
+      setTecnicos([]);
+    }
+  }
+
+  useEffect(function(){ cargarSolicitudes(); cargarTecnicos(); },[]);
+
+  async function actualizarSolicitud(id, patch){
+    setSavingId(id);
+    setSolicitudes(function(prev){ return prev.map(function(s){ return s.id===id ? Object.assign({},s,patch) : s; }); });
+    try{
+      const {error} = await sb.from("solicitudes_mantenimiento").update(patch).eq("id", id);
+      if(error) throw error;
+    }catch(ex){
+      console.warn("No se pudo actualizar la solicitud", ex);
+      cargarSolicitudes(); // revertir mostrando el estado real
+    }
+    setSavingId(null);
+  }
+
+  const asignadosPresentes = useMemo(function(){
+    var set = new Set();
+    solicitudes.forEach(function(s){ if(s.asignado_a) set.add(s.asignado_a); });
+    return Array.from(set).sort();
+  },[solicitudes]);
+
+  const visibles = useMemo(function(){
+    return solicitudes.filter(function(s){
+      if(filtroEstado && s.estado!==filtroEstado) return false;
+      if(filtroAsignado==="__sin_asignar__" && s.asignado_a) return false;
+      if(filtroAsignado && filtroAsignado!=="__sin_asignar__" && s.asignado_a!==filtroAsignado) return false;
+      return true;
+    });
+  },[solicitudes, filtroEstado, filtroAsignado]);
+
+  return(
+    <div style={{minHeight:"100vh",background:"var(--lighter)",paddingBottom:40}}>
+      <style>{`
+        .sm-hdr{background:var(--navy);padding:14px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:60;box-shadow:0 2px 12px rgba(13,47,92,0.28);}
+        .sm-hdr-back{background:rgba(255,255,255,0.12);border:none;border-radius:8px;color:#fff;cursor:pointer;padding:6px 10px;display:flex;align-items:center;gap:5px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;flex-shrink:0;}
+        .sm-hdr-logo{height:40px;width:auto;display:block;border-radius:10px;flex-shrink:0;}
+        .sm-hdr-title{font-family:Montserrat,sans-serif;font-weight:800;font-size:14px;color:#fff;letter-spacing:0.3px;}
+        .sm-hdr-sub{font-family:Montserrat,sans-serif;font-size:9px;color:rgba(255,255,255,0.45);letter-spacing:1.5px;text-transform:uppercase;margin-top:1px;}
+        .sm-body{margin:0 20px;}
+        .sm-section-title{font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:1px;opacity:0.7;margin:18px 2px 10px;}
+        .sm-filters{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+        .sm-native-select{width:100%;background:var(--lighter);border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;font-size:13px;font-family:inherit;color:var(--navy);}
+        .sm-req-card{background:#fff;border-radius:14px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 8px rgba(13,47,92,0.06);}
+        .sm-req-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;}
+        .sm-req-cons{font-family:Montserrat,sans-serif;font-weight:800;font-size:14px;color:var(--navy);}
+        .sm-req-badge{font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:100px;white-space:nowrap;}
+        .sm-req-resumen{font-size:13.5px;font-weight:600;color:var(--navy);margin-bottom:3px;}
+        .sm-req-desc{font-size:12.5px;color:var(--gray);margin-bottom:6px;white-space:pre-wrap;}
+        .sm-req-meta{font-size:11px;color:var(--gray);margin-bottom:10px;}
+        .sm-req-controls{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+      `}</style>
+
+      <div className="sm-hdr">
+        <button className="sm-hdr-back" onClick={onBack}>← Volver</button>
+        <img className="sm-hdr-logo" src={LOGO_SRC} alt="Bussié"/>
+        <div>
+          <div className="sm-hdr-title">Gestión de Solicitudes</div>
+          <div className="sm-hdr-sub">Bussié · Solicitudes de Mantenimiento</div>
+        </div>
+      </div>
+
+      <div className="sm-body">
+        <div className="sm-section-title">Filtros</div>
+        <div className="sm-filters">
+          <select className="sm-native-select" value={filtroEstado} onChange={function(e){setFiltroEstado(e.target.value);}}>
+            <option value="">Todos los estados</option>
+            {SM_ESTADOS.map(function(es){ return <option key={es} value={es}>{SM_ESTADO_META[es].label}</option>; })}
+          </select>
+          <select className="sm-native-select" value={filtroAsignado} onChange={function(e){setFiltroAsignado(e.target.value);}}>
+            <option value="">Todos (asignación)</option>
+            <option value="__sin_asignar__">Sin asignar</option>
+            {asignadosPresentes.map(function(a){ return <option key={a} value={a}>{a}</option>; })}
+          </select>
+        </div>
+
+        <div className="sm-section-title">Solicitudes ({visibles.length})</div>
+
+        {loading && <div style={{textAlign:"center",padding:20,color:"var(--gray)",fontSize:13}}>Cargando…</div>}
+
+        {!loading && visibles.length===0 && (
+          <div style={{textAlign:"center",padding:20,color:"var(--gray)",fontSize:13}}>
+            No hay solicitudes que coincidan con estos filtros.
+          </div>
+        )}
+
+        {visibles.map(function(s){
+          var meta = SM_ESTADO_META[s.estado] || SM_ESTADO_META.abierta;
+          return (
+            <div key={s.id} className="sm-req-card">
+              <div className="sm-req-top">
+                <span className="sm-req-cons">{s.consecutivo}</span>
+                <span className="sm-req-badge" style={{color:meta.color,background:meta.bg}}>{meta.label}</span>
+              </div>
+              <div className="sm-req-resumen">{smResumenSolicitud(s)}</div>
+              <div className="sm-req-desc">{s.descripcion}</div>
+              <div className="sm-req-meta">{s.solicitante} · {smFormatFechaHora(s.enviado_en)}</div>
+              <div className="sm-req-controls">
+                <select
+                  className="sm-native-select"
+                  disabled={savingId===s.id}
+                  value={s.estado}
+                  onChange={function(e){ actualizarSolicitud(s.id, {estado:e.target.value}); }}
+                >
+                  {SM_ESTADOS.map(function(es){ return <option key={es} value={es}>{SM_ESTADO_META[es].label}</option>; })}
+                </select>
+                <select
+                  className="sm-native-select"
+                  disabled={savingId===s.id}
+                  value={s.asignado_a || ""}
+                  onChange={function(e){ actualizarSolicitud(s.id, {asignado_a: e.target.value || null}); }}
+                >
+                  <option value="">Sin asignar</option>
+                  {tecnicos.map(function(t){ return <option key={t.code || t.name} value={t.name}>{t.name}</option>; })}
+                </select>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 function EstadoSolicitudesScreen({onBack}){
   return <SmComingSoon onBack={onBack} titulo="Estado de Solicitudes" icon="📊"
-    subtitulo="Acá se va a poder consultar y hacer seguimiento al estado de cada solicitud."/>;
+    subtitulo="Aquí se va a poder consultar y hacer seguimiento al estado de cada solicitud."/>;
 }
 
 // ── Solicitudes de Mantenimiento — selector de submódulos ────────────────────
@@ -11613,7 +11785,7 @@ function SolicitudesMetrologiaApp({onBack, initialUser}){
       </div>
 
       <div className="sm-body">
-        <div className="sm-section-title">¿Qué querés hacer?</div>
+        <div className="sm-section-title">¿Qué deseas hacer?</div>
         <div style={{display:"flex",flexDirection:"column",gap:12}}>
           {subs.map(function(s){
             return (

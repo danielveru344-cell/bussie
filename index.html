@@ -11050,6 +11050,60 @@ function MantenimientosApp({onBack, initialUser}){
 }
 
 
+// ── Solicitudes (Metrología) ─────────────────────────────────────────────────
+// Paso 1: encabezado + consecutivo automático (formato 001-26 = número-año).
+// El consecutivo mostrado aquí es una PREVISUALIZACIÓN (no reserva el número);
+// el número definitivo se asigna recién al guardar la solicitud (siguiente paso).
+function SolicitudesMetrologiaApp({onBack, initialUser}){
+  const anioActual = new Date().getFullYear();
+  const [consecutivo, setConsecutivo] = useState(null);
+  const [loadingCons, setLoadingCons] = useState(true);
+
+  async function cargarConsecutivo(){
+    setLoadingCons(true);
+    try{
+      const {data, error} = await sb.rpc("previsualizar_consecutivo_solicitud_metrologia", {p_anio: anioActual});
+      if(error) throw error;
+      setConsecutivo(data);
+    }catch(ex){
+      console.warn("No se pudo obtener el consecutivo previsualizado", ex);
+      setConsecutivo(null);
+    }
+    setLoadingCons(false);
+  }
+
+  useEffect(function(){ cargarConsecutivo(); },[]);
+
+  return(
+    <div style={{minHeight:"100vh",background:"var(--lighter)",paddingBottom:40}}>
+      <style>{`
+        .sm-hdr{background:var(--navy);padding:14px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:60;box-shadow:0 2px 12px rgba(13,47,92,0.28);}
+        .sm-hdr-back{background:rgba(255,255,255,0.12);border:none;border-radius:8px;color:#fff;cursor:pointer;padding:6px 10px;display:flex;align-items:center;gap:5px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;flex-shrink:0;}
+        .sm-hdr-logo{height:40px;width:auto;display:block;border-radius:10px;flex-shrink:0;}
+        .sm-hdr-title{font-family:Montserrat,sans-serif;font-weight:800;font-size:14px;color:#fff;letter-spacing:0.3px;}
+        .sm-hdr-sub{font-family:Montserrat,sans-serif;font-size:9px;color:rgba(255,255,255,0.45);letter-spacing:1.5px;text-transform:uppercase;margin-top:1px;}
+        .sm-cons-card{background:#fff;border-radius:16px;padding:20px 24px;margin:16px 20px;box-shadow:0 1px 8px rgba(13,47,92,0.08);text-align:center;}
+        .sm-cons-label{font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:1px;}
+        .sm-cons-value{font-family:Montserrat,sans-serif;font-weight:800;font-size:34px;color:var(--navy);letter-spacing:1px;margin-top:4px;}
+      `}</style>
+
+      <div className="sm-hdr">
+        {onBack&&<button className="sm-hdr-back" onClick={onBack}>← Suite</button>}
+        <img className="sm-hdr-logo" src={LOGO_SRC} alt="Bussié"/>
+        <div>
+          <div className="sm-hdr-title">Solicitudes</div>
+          <div className="sm-hdr-sub">Bussié · Metrología</div>
+        </div>
+      </div>
+
+      <div className="sm-cons-card">
+        <div className="sm-cons-label">Consecutivo</div>
+        <div className="sm-cons-value">{loadingCons?"…":(consecutivo||"—")}</div>
+      </div>
+    </div>
+  );
+}
+
 function SuiteSelector({onSelect, currentUser, onLogout}){
   var LOGO="data:image/jpeg;base64,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";
   // ── Conteo pendientes Req. Planta ──────────────────────────────────────────
@@ -11093,6 +11147,12 @@ function SuiteSelector({onSelect, currentUser, onLogout}){
     React.createElement("path",{d:"M15.5 6.5C15.5 6.5 17 5 19 5.5L16.5 8L17.5 10L20 9.5C20.5 11.5 19 13 19 13C17.5 14.5 15.5 14 15.5 14L9 20.5C8.2 21.3 6.8 21.3 6 20.5C5.2 19.7 5.2 18.3 6 17.5L12.5 11C12.5 11 12 9 13.5 7.5C13.5 7.5 14.5 6.5 15.5 6.5Z",stroke:"white",strokeWidth:"1.75",strokeLinejoin:"round"}),
     React.createElement("circle",{cx:"7",cy:"19.5",r:"0.5",fill:"white"})
   );
+  var IconSolicitudes = React.createElement("svg",{width:26,height:26,viewBox:"0 0 26 26",fill:"none",xmlns:"http://www.w3.org/2000/svg"},
+    React.createElement("path",{d:"M6 3.5H16.5L21 8V22.5H6V3.5Z",stroke:"white",strokeWidth:"1.75",strokeLinejoin:"round"}),
+    React.createElement("path",{d:"M16 3.5V8.5H21",stroke:"white",strokeWidth:"1.75",strokeLinejoin:"round"}),
+    React.createElement("path",{d:"M9.5 13.5H17.5",stroke:"white",strokeWidth:"1.75",strokeLinecap:"round"}),
+    React.createElement("path",{d:"M9.5 17.5H14.5",stroke:"white",strokeWidth:"1.75",strokeLinecap:"round"})
+  );
   var IconChevron = React.createElement("svg",{width:7,height:13,viewBox:"0 0 7 13",fill:"none"},
     React.createElement("path",{d:"M1 1L6 6.5L1 12",stroke:"rgba(255,255,255,0.32)",strokeWidth:"1.75",strokeLinecap:"round",strokeLinejoin:"round"})
   );
@@ -11124,6 +11184,15 @@ function SuiteSelector({onSelect, currentUser, onLogout}){
       // Bussié blue accent
       grad:"linear-gradient(148deg, #3D8BE8 0%, #1a4a82 100%)",
       glow:"rgba(45,125,210,0.42)",
+    },
+    {
+      id:"solicitudes_metrologia",
+      icon: IconSolicitudes,
+      label:"Solicitudes",
+      tags:["Metrología","Consecutivo"],
+      // Bussié purple accent (distinto del verde/ámbar/azul ya usados)
+      grad:"linear-gradient(148deg, #9B5DE5 0%, #5E2B9E 100%)",
+      glow:"rgba(155,93,229,0.40)",
     }
   ];
 
@@ -11286,6 +11355,7 @@ function RootApp(){
   if(mod==="almacen") return <AlmacenApp onBack={handleLogout} initialUser={rootUser}/>;
   if(mod==="bitacora") return <BitacoraApp onBack={function(){setMod(null);}} initialUser={rootUser}/>;
   if(mod==="mantenimientos") return <MantenimientosApp onBack={function(){setMod(null);}} initialUser={rootUser}/>;
+  if(mod==="solicitudes_metrologia") return <SolicitudesMetrologiaApp onBack={function(){setMod(null);}} initialUser={rootUser}/>;
   return null;
 }
 ReactDOM.render(React.createElement(RootApp),document.getElementById("root"));

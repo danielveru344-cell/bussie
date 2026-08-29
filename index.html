@@ -11050,14 +11050,165 @@ function MantenimientosApp({onBack, initialUser}){
 }
 
 
-// ── Solicitudes (Metrología) ─────────────────────────────────────────────────
+// ── Solicitudes de Mantenimiento — helpers de datos ──────────────────────────
+// Los equipos de producción vienen como "COD-ÁREA-N - NOMBRE" (ej: "EP-322-1 - ENVASADORA PPR").
+// El código de área es todo antes del último "-N". Con ese número final buscamos el
+// nombre real del área en AREAS_LOC ("NOMBRE (322)") para mostrar una etiqueta legible.
+function smParseCodeName(str){
+  var idx = str.indexOf(" - ");
+  if(idx===-1) return {code:str.trim(), name:""};
+  return {code:str.slice(0,idx).trim(), name:str.slice(idx+3).trim()};
+}
+function smAreaCodeFromEquipoCode(code){
+  var m = code.match(/^(.*)-(\d+)$/);
+  return m ? m[1] : code;
+}
+function smParseAreaLoc(str){
+  var m = str.match(/^(.*)\(([^)]+)\)\s*$/);
+  if(m) return {nombre:m[1].trim(), codigo:m[2].trim()};
+  return {nombre:str.trim(), codigo:""};
+}
+function smNormaliza(s){
+  return (s||"").toString().normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+}
+function smFriendlyAreaLabel(areaCode, locList){
+  var m = areaCode.match(/(\d+)$/);
+  if(m){
+    var num = m[1];
+    for(var i=0;i<locList.length;i++){
+      var p = smParseAreaLoc(locList[i]);
+      if(p.codigo===num) return p.nombre+" ("+areaCode+")";
+    }
+  }
+  return areaCode;
+}
+// Agrupa una lista tipo AREAS_DEF/metEqs por área derivada del código.
+// Los ítems sin patrón "COD - NOMBRE" caen en un balde "Sin área asignada".
+function smGroupByArea(list, locList){
+  var groups = {}; var order=[];
+  (list||[]).forEach(function(raw){
+    var pc = smParseCodeName(raw);
+    var areaCode = pc.name ? smAreaCodeFromEquipoCode(pc.code) : "";
+    var key = areaCode || "__sin_area__";
+    if(!groups[key]){
+      groups[key] = {
+        key:key,
+        label: areaCode ? smFriendlyAreaLabel(areaCode, locList||[]) : "Sin área asignada",
+        items: []
+      };
+      order.push(key);
+    }
+    groups[key].items.push({raw:raw, code:pc.code, name:pc.name||raw});
+  });
+  return order.map(function(k){return groups[k];}).sort(function(a,b){return a.label.localeCompare(b.label);});
+}
+
+// ── Combobox con búsqueda (por código o por palabra) ─────────────────────────
+function SmSelect({label, placeholder, options, value, onSelect, disabled, disabledHint}){
+  const [open,setOpen] = useState(false);
+  const [query,setQuery] = useState("");
+  const wrapRef = useRef(null);
+
+  useEffect(function(){
+    function onDocClick(e){
+      if(wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return function(){ document.removeEventListener("mousedown", onDocClick); };
+  },[]);
+
+  const selected = (options||[]).find(function(o){return o.value===value;});
+  const q = smNormaliza(query);
+  const filtered = q ? (options||[]).filter(function(o){
+    return smNormaliza(o.label).indexOf(q)!==-1 || smNormaliza(o.sub||"").indexOf(q)!==-1;
+  }) : (options||[]);
+
+  return (
+    <div ref={wrapRef} style={{position:"relative"}}>
+      <div className="ios-input-label">{label} <span style={{color:"#C0001A"}}>*</span></div>
+      <button
+        type="button"
+        onClick={function(){ if(!disabled) setOpen(!open); }}
+        style={{
+          width:"100%",textAlign:"left",background:disabled?"#eef1f6":"var(--lighter)",
+          border:"1.5px solid var(--border)",borderRadius:8,padding:"11px 14px",
+          fontSize:14,color:selected?"var(--navy)":"var(--gray)",fontFamily:"inherit",
+          cursor:disabled?"not-allowed":"pointer",display:"flex",justifyContent:"space-between",
+          alignItems:"center",gap:8
+        }}
+      >
+        <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+          {selected ? selected.label : (disabled ? (disabledHint||"Seleccioná primero el área") : placeholder)}
+        </span>
+        <span style={{opacity:0.5,flexShrink:0}}>▾</span>
+      </button>
+
+      {open && !disabled && (
+        <div style={{
+          position:"absolute",top:"100%",left:0,right:0,marginTop:6,background:"#fff",
+          border:"1.5px solid var(--border)",borderRadius:10,boxShadow:"0 8px 28px rgba(13,47,92,0.18)",
+          zIndex:80,maxHeight:320,display:"flex",flexDirection:"column",overflow:"hidden"
+        }}>
+          <div style={{padding:8,borderBottom:"1px solid var(--border)"}}>
+            <input
+              autoFocus
+              className="ios-input"
+              placeholder="Buscar por código o palabra…"
+              value={query}
+              onChange={function(e){ setQuery(e.target.value); }}
+            />
+          </div>
+          <div style={{overflowY:"auto"}}>
+            {filtered.length===0 && (
+              <div style={{padding:14,fontSize:13,color:"var(--gray)",textAlign:"center"}}>Sin resultados</div>
+            )}
+            {filtered.map(function(o){
+              return (
+                <div key={o.value}
+                  onClick={function(){ onSelect(o.value); setOpen(false); setQuery(""); }}
+                  style={{
+                    padding:"10px 14px",cursor:"pointer",
+                    background:o.value===value?"var(--light)":"transparent",
+                    borderBottom:"1px solid var(--border)"
+                  }}
+                >
+                  <div style={{fontSize:13.5,fontWeight:600,color:"var(--navy)"}}>{o.label}</div>
+                  {o.sub && <div style={{fontSize:11,color:"var(--gray)",marginTop:1}}>{o.sub}</div>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Solicitudes de Mantenimiento ─────────────────────────────────────────────
 // Paso 1: encabezado + consecutivo automático (formato 001-26 = número-año).
 // El consecutivo mostrado aquí es una PREVISUALIZACIÓN (no reserva el número);
 // el número definitivo se asigna recién al guardar la solicitud (siguiente paso).
+// Paso 1: encabezado + consecutivo automático (formato 001-26 = número-año).
+// Paso 2: elegir tipo de solicitud (Área / Equipo / Instrumento) y, para Equipo/Instrumento,
+// primero elegir el área para desbloquear el segundo desplegable filtrado por esa área.
+// El consecutivo mostrado es una PREVISUALIZACIÓN (no reserva el número); el número
+// definitivo se asigna recién al guardar la solicitud (siguiente paso).
 function SolicitudesMetrologiaApp({onBack, initialUser}){
   const anioActual = new Date().getFullYear();
   const [consecutivo, setConsecutivo] = useState(null);
   const [loadingCons, setLoadingCons] = useState(true);
+
+  const [loadingListas, setLoadingListas] = useState(true);
+  const [eqs, setEqs] = useState(AREAS_DEF);
+  const [locEqs, setLocEqs] = useState(AREAS_LOC);
+  const [metEqs, setMetEqs] = useState([]);
+
+  const [tipo, setTipo] = useState(null); // 'area' | 'equipo' | 'instrumento'
+  const [areaSel, setAreaSel] = useState("");       // tipo=area: valor de AREAS_LOC elegido
+  const [eqAreaSel, setEqAreaSel] = useState("");    // tipo=equipo: key de área elegida
+  const [eqSel, setEqSel] = useState("");            // tipo=equipo: equipo elegido (raw)
+  const [metAreaSel, setMetAreaSel] = useState("");  // tipo=instrumento: key de área elegida
+  const [metSel, setMetSel] = useState("");          // tipo=instrumento: instrumento elegido (raw)
 
   async function cargarConsecutivo(){
     setLoadingCons(true);
@@ -11072,7 +11223,64 @@ function SolicitudesMetrologiaApp({onBack, initialUser}){
     setLoadingCons(false);
   }
 
-  useEffect(function(){ cargarConsecutivo(); },[]);
+  async function cargarListas(){
+    setLoadingListas(true);
+    try{
+      const [eqVal, locVal, metVal] = await Promise.all([btkGet(KS.eq), btkGet(KS.loc), btkGet(KS.met)]);
+      setEqs(eqVal!==null && eqVal.length>0 ? eqVal : lg(KS.eq, AREAS_DEF));
+      setLocEqs(locVal!==null && locVal.length>0 ? locVal : lg(KS.loc, AREAS_LOC));
+      setMetEqs(metVal!==null ? metVal : lg(KS.met, []));
+    }catch(ex){
+      console.warn("No se pudieron cargar las listas de áreas/equipos", ex);
+      setEqs(lg(KS.eq, AREAS_DEF));
+      setLocEqs(lg(KS.loc, AREAS_LOC));
+      setMetEqs(lg(KS.met, []));
+    }
+    setLoadingListas(false);
+  }
+
+  useEffect(function(){ cargarConsecutivo(); cargarListas(); },[]);
+
+  function elegirTipo(t){
+    setTipo(t);
+    setAreaSel(""); setEqAreaSel(""); setEqSel(""); setMetAreaSel(""); setMetSel("");
+  }
+
+  // Opciones para el tipo "Área": todo el listado de áreas (buscar por código o palabra)
+  const areaOptions = useMemo(function(){
+    return (locEqs||[]).map(function(raw){
+      var p = smParseAreaLoc(raw);
+      return {value:raw, label:p.nombre, sub: p.codigo?("Código "+p.codigo):""};
+    });
+  },[locEqs]);
+
+  // Agrupaciones por área para Equipos e Instrumentos
+  const equipoGroups = useMemo(function(){ return smGroupByArea(eqs, locEqs); },[eqs, locEqs]);
+  const metGroups = useMemo(function(){ return smGroupByArea(metEqs, locEqs); },[metEqs, locEqs]);
+
+  const equipoAreaOptions = useMemo(function(){
+    return equipoGroups.map(function(g){ return {value:g.key, label:g.label, sub:g.items.length+" equipo(s)"}; });
+  },[equipoGroups]);
+  const metAreaOptions = useMemo(function(){
+    return metGroups.map(function(g){ return {value:g.key, label:g.label, sub:g.items.length+" instrumento(s)"}; });
+  },[metGroups]);
+
+  const equipoOptions = useMemo(function(){
+    var g = equipoGroups.find(function(x){return x.key===eqAreaSel;});
+    if(!g) return [];
+    return g.items.map(function(it){ return {value:it.raw, label:it.name, sub:it.code}; });
+  },[equipoGroups, eqAreaSel]);
+  const metOptions = useMemo(function(){
+    var g = metGroups.find(function(x){return x.key===metAreaSel;});
+    if(!g) return [];
+    return g.items.map(function(it){ return {value:it.raw, label:it.name, sub:it.code}; });
+  },[metGroups, metAreaSel]);
+
+  const tipos = [
+    {id:"area", icon:"🏭", label:"Área", desc:"Solicitud sobre un área"},
+    {id:"equipo", icon:"⚙️", label:"Equipo", desc:"Solicitud sobre un equipo"},
+    {id:"instrumento", icon:"📏", label:"Instrumento", desc:"Metrología"}
+  ];
 
   return(
     <div style={{minHeight:"100vh",background:"var(--lighter)",paddingBottom:40}}>
@@ -11085,20 +11293,124 @@ function SolicitudesMetrologiaApp({onBack, initialUser}){
         .sm-cons-card{background:#fff;border-radius:16px;padding:20px 24px;margin:16px 20px;box-shadow:0 1px 8px rgba(13,47,92,0.08);text-align:center;}
         .sm-cons-label{font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:1px;}
         .sm-cons-value{font-family:Montserrat,sans-serif;font-weight:800;font-size:34px;color:var(--navy);letter-spacing:1px;margin-top:4px;}
+        .sm-body{margin:0 20px;}
+        .sm-section-title{font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:1px;opacity:0.7;margin:18px 2px 10px;}
+        .sm-tipos{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+        .sm-tipo-card{background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:16px 8px;text-align:center;cursor:pointer;transition:all .15s;}
+        .sm-tipo-card:active{transform:scale(0.97);}
+        .sm-tipo-card.sel{border-color:var(--navy);background:var(--light);box-shadow:0 2px 10px rgba(13,47,92,0.14);}
+        .sm-tipo-icon{font-size:24px;}
+        .sm-tipo-label{font-family:Montserrat,sans-serif;font-weight:800;font-size:12.5px;color:var(--navy);margin-top:6px;}
+        .sm-tipo-desc{font-size:10.5px;color:var(--gray);margin-top:2px;}
+        .sm-field{background:#fff;border-radius:14px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 8px rgba(13,47,92,0.06);}
+        .sm-req-note{font-size:11.5px;color:var(--gray);margin-top:10px;text-align:center;}
       `}</style>
 
       <div className="sm-hdr">
         {onBack&&<button className="sm-hdr-back" onClick={onBack}>← Suite</button>}
         <img className="sm-hdr-logo" src={LOGO_SRC} alt="Bussié"/>
         <div>
-          <div className="sm-hdr-title">Solicitudes</div>
-          <div className="sm-hdr-sub">Bussié · Metrología</div>
+          <div className="sm-hdr-title">Solicitudes de Mantenimiento</div>
+          <div className="sm-hdr-sub">Bussié</div>
         </div>
       </div>
 
       <div className="sm-cons-card">
         <div className="sm-cons-label">Consecutivo</div>
         <div className="sm-cons-value">{loadingCons?"…":(consecutivo||"—")}</div>
+      </div>
+
+      <div className="sm-body">
+        <div className="sm-section-title">¿Sobre qué es la solicitud?</div>
+        <div className="sm-tipos">
+          {tipos.map(function(t){
+            return (
+              <div key={t.id} className={"sm-tipo-card"+(tipo===t.id?" sel":"")} onClick={function(){elegirTipo(t.id);}}>
+                <div className="sm-tipo-icon">{t.icon}</div>
+                <div className="sm-tipo-label">{t.label}</div>
+                <div className="sm-tipo-desc">{t.desc}</div>
+              </div>
+            );
+          })}
+        </div>
+
+        {tipo && loadingListas && (
+          <div style={{textAlign:"center",padding:20,color:"var(--gray)",fontSize:13}}>Cargando listas…</div>
+        )}
+
+        {tipo==="area" && !loadingListas && (
+          <React.Fragment>
+            <div className="sm-section-title">Área</div>
+            <div className="sm-field">
+              <SmSelect
+                label="Área"
+                placeholder="Buscar área por código o palabra…"
+                options={areaOptions}
+                value={areaSel}
+                onSelect={setAreaSel}
+              />
+            </div>
+          </React.Fragment>
+        )}
+
+        {tipo==="equipo" && !loadingListas && (
+          <React.Fragment>
+            <div className="sm-section-title">Área y equipo</div>
+            <div className="sm-field">
+              <SmSelect
+                label="Área"
+                placeholder="Buscar área por código o palabra…"
+                options={equipoAreaOptions}
+                value={eqAreaSel}
+                onSelect={function(v){ setEqAreaSel(v); setEqSel(""); }}
+              />
+            </div>
+            <div className="sm-field">
+              <SmSelect
+                label="Equipo"
+                placeholder="Buscar equipo por código o palabra…"
+                options={equipoOptions}
+                value={eqSel}
+                onSelect={setEqSel}
+                disabled={!eqAreaSel}
+                disabledHint="Seleccioná primero el área"
+              />
+            </div>
+          </React.Fragment>
+        )}
+
+        {tipo==="instrumento" && !loadingListas && (
+          <React.Fragment>
+            <div className="sm-section-title">Área e instrumento</div>
+            {metEqs.length===0 && (
+              <div style={{fontSize:12.5,color:"var(--gray)",marginBottom:10}}>
+                Todavía no hay instrumentos de metrología cargados en el sistema.
+              </div>
+            )}
+            <div className="sm-field">
+              <SmSelect
+                label="Área"
+                placeholder="Buscar área por código o palabra…"
+                options={metAreaOptions}
+                value={metAreaSel}
+                onSelect={function(v){ setMetAreaSel(v); setMetSel(""); }}
+              />
+            </div>
+            <div className="sm-field">
+              <SmSelect
+                label="Instrumento"
+                placeholder="Buscar instrumento por código o palabra…"
+                options={metOptions}
+                value={metSel}
+                onSelect={setMetSel}
+                disabled={!metAreaSel}
+                disabledHint="Seleccioná primero el área"
+              />
+            </div>
+          </React.Fragment>
+        )}
+
+        {tipo && <div className="sm-req-note">Todos los campos son obligatorios.</div>}
       </div>
     </div>
   );
@@ -11188,8 +11500,8 @@ function SuiteSelector({onSelect, currentUser, onLogout}){
     {
       id:"solicitudes_metrologia",
       icon: IconSolicitudes,
-      label:"Solicitudes",
-      tags:["Metrología","Consecutivo"],
+      label:"Solicitudes de Mantenimiento",
+      tags:["Áreas","Equipos","Metrología"],
       // Bussié purple accent (distinto del verde/ámbar/azul ya usados)
       grad:"linear-gradient(148deg, #9B5DE5 0%, #5E2B9E 100%)",
       glow:"rgba(155,93,229,0.40)",

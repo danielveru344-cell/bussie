@@ -11078,6 +11078,13 @@ function smFormatFechaHora(iso){
   function pad2(n){ return n<10 ? "0"+n : ""+n; }
   return pad2(d.getDate())+"/"+pad2(d.getMonth()+1)+"/"+pad2(d.getFullYear()%100)+" · "+pad2(d.getHours())+":"+pad2(d.getMinutes());
 }
+function smFormatFecha(iso){
+  if(!iso) return "";
+  var d = new Date(iso);
+  if(isNaN(d.getTime())) return "";
+  function pad2(n){ return n<10 ? "0"+n : ""+n; }
+  return pad2(d.getDate())+"/"+pad2(d.getMonth()+1)+"/"+pad2(d.getFullYear()%100);
+}
 function smFriendlyAreaLabel(areaCode, locList){
   var m = areaCode.match(/(\d+)$/);
   if(m){
@@ -11584,7 +11591,87 @@ function smResumenSolicitud(s){
   return base + (s.item_nombre || "—");
 }
 
-function GestionSolicitudesScreen({onBack}){
+// ── Impresión del formato oficial F-MAN-006 (Solicitud de Trabajo para Mantenimiento) ──
+// Se abre en una pestaña nueva y lanza el diálogo de impresión del navegador.
+// Los campos que se llenan a mano (firmas, bitácora de horas, trabajo recibido)
+// quedan en blanco a propósito: eso se completa físicamente, no lo sabe el sistema.
+function smImprimirSolicitud(s, nombreAsigna){
+  var equipo = (s.tipo==="equipo" || s.tipo==="instrumento") ? (s.item_nombre||"") + (s.item_codigo?(" ("+s.item_codigo+")"):"") : "";
+  var area = (s.area_nombre||"") + (s.area_codigo?(" ("+s.area_codigo+")"):"");
+  var filasBitacora = "";
+  for(var i=0;i<5;i++){
+    filasBitacora += '<tr><td class="fm-cell" style="height:26px;"></td><td class="fm-cell"></td><td class="fm-cell"></td><td class="fm-cell" colspan="2"></td><td class="fm-cell"></td></tr>';
+  }
+  var html = ''
+    + '<!doctype html><html lang="es"><head><meta charset="UTF-8">'
+    + '<title>' + s.consecutivo + ' — Solicitud de Trabajo para Mantenimiento</title>'
+    + '<style>'
+    + '  @page{ size:letter; margin:14mm; }'
+    + '  body{ font-family:Arial,Helvetica,sans-serif; color:#111; margin:0; }'
+    + '  .fm-wrap{ max-width:720px; margin:0 auto; }'
+    + '  .fm-top{ text-align:right; font-size:11px; font-weight:700; margin-bottom:2px; }'
+    + '  .fm-title{ text-align:center; font-size:15px; font-weight:800; text-transform:uppercase; margin:6px 0 14px; }'
+    + '  table.fm-table{ width:100%; border-collapse:collapse; margin-bottom:10px; }'
+    + '  .fm-cell{ border:1px solid #000; padding:5px 8px; font-size:11.5px; vertical-align:top; }'
+    + '  .fm-label{ font-weight:700; }'
+    + '  .fm-desc-box{ border:1px solid #000; min-height:70px; padding:6px 8px; font-size:11.5px; margin-bottom:10px; }'
+    + '  .fm-sig-box{ border:1px solid #000; min-height:44px; padding:6px 8px; font-size:11.5px; margin-bottom:10px; }'
+    + '  .fm-two-col{ display:flex; gap:10px; margin-bottom:10px; }'
+    + '  .fm-two-col > div{ flex:1; border:1px solid #000; padding:6px 8px; font-size:11.5px; }'
+    + '  th.fm-cell{ background:#eee; font-size:10.5px; text-align:center; }'
+    + '  .fm-footer{ font-size:9.5px; margin-top:16px; }'
+    + '  @media print{ .fm-noprint{ display:none; } }'
+    + '</style></head><body>'
+    + '<div class="fm-wrap">'
+    + '  <div class="fm-noprint" style="text-align:right;margin-bottom:10px;">'
+    + '    <button onclick="window.print()" style="padding:8px 14px;font-family:Arial;font-weight:700;cursor:pointer;">Imprimir</button>'
+    + '  </div>'
+    + '  <div class="fm-top">CONSECUTIVO: ' + s.consecutivo + '</div>'
+    + '  <div class="fm-title">Solicitud de Trabajo para Mantenimiento</div>'
+    + '  <div class="fm-two-col">'
+    + '    <div><span class="fm-label">Área: </span>' + area + '</div>'
+    + '    <div><span class="fm-label">Fecha: </span>' + smFormatFecha(s.enviado_en) + '</div>'
+    + '  </div>'
+    + '  <div class="fm-label" style="font-size:11.5px;margin-bottom:4px;">Descripción del trabajo:</div>'
+    + '  <div class="fm-desc-box">' + (s.descripcion||"") + '</div>'
+    + '  <div class="fm-two-col">'
+    + '    <div><span class="fm-label">Equipo: </span>' + equipo + '</div>'
+    + '    <div><span class="fm-label">Firma jefe de área: </span></div>'
+    + '  </div>'
+    + '  <div class="fm-label" style="font-size:11.5px;margin-bottom:4px;">Asigna gerente y/o jefe de mantenimiento:</div>'
+    + '  <div class="fm-sig-box">' + (nombreAsigna||"") + '</div>'
+    + '  <div class="fm-two-col">'
+    + '    <div><span class="fm-label">Asignado a: </span>' + (s.asignado_a||"") + '</div>'
+    + '    <div><span class="fm-label">Fecha de asignación: </span>' + smFormatFecha(s.asignado_en) + '</div>'
+    + '  </div>'
+    + '  <table class="fm-table">'
+    + '    <tr>'
+    + '      <th class="fm-cell" rowspan="2">Fecha</th>'
+    + '      <th class="fm-cell" colspan="2">Tiempo</th>'
+    + '      <th class="fm-cell" colspan="2" rowspan="2">Materiales y/o descripción del trabajo</th>'
+    + '      <th class="fm-cell" rowspan="2">Realizó</th>'
+    + '    </tr>'
+    + '    <tr><th class="fm-cell">Hora inicio</th><th class="fm-cell">Hora final</th></tr>'
+    + filasBitacora
+    + '  </table>'
+    + '  <div class="fm-two-col"><div><span class="fm-label">Total horas: </span></div></div>'
+    + '  <div class="fm-two-col">'
+    + '    <div><span class="fm-label">Trabajo recibido: </span></div>'
+    + '    <div><span class="fm-label">Fecha: </span></div>'
+    + '  </div>'
+    + '  <div class="fm-footer">CÓDIGO: F-MAN-006&nbsp;&nbsp;&nbsp;&nbsp;VERSIÓN: 02&nbsp;&nbsp;&nbsp;FECHA DE APLICACIÓN: 01-08-2024</div>'
+    + '</div>'
+    + '<script>window.onload=function(){ setTimeout(function(){ window.focus(); window.print(); }, 250); };<' + '/script>'
+    + '</body></html>';
+
+  var w = window.open("", "_blank");
+  if(!w){ alert("El navegador bloqueó la ventana de impresión. Habilitá las ventanas emergentes para este sitio."); return; }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+}
+
+function GestionSolicitudesScreen({onBack, initialUser}){
   const [solicitudes, setSolicitudes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [asignables, setAsignables] = useState([]); // usuarios con cargo Técnico o Auxiliar
@@ -11645,8 +11732,13 @@ function GestionSolicitudesScreen({onBack}){
 
   async function confirmarAsignar(id){
     if(!tecnicoElegido) return;
+    var s = solicitudes.find(function(x){return x.id===id;});
     await actualizarSolicitud(id, {estado:"asignada", asignado_a:tecnicoElegido, motivo_rechazo:null});
     cancelarAccion();
+    if(s){
+      var ahora = new Date().toISOString();
+      smImprimirSolicitud(Object.assign({},s,{estado:"asignada",asignado_a:tecnicoElegido,asignado_en:ahora}), (initialUser && (initialUser.nombre||initialUser.username))||"");
+    }
   }
   async function confirmarRechazar(id){
     if(!motivoRechazo.trim()) return;
@@ -11808,9 +11900,18 @@ function GestionSolicitudesScreen({onBack}){
                     Asignada a: {s.asignado_a || "—"}
                     {s.asignado_en && <span style={{fontWeight:400,color:"var(--gray)"}}> · {smFormatFechaHora(s.asignado_en)}</span>}
                   </div>
-                  <button type="button" className="sm-btn-secundario" style={{width:"100%"}} disabled={savingId===s.id} onClick={function(){marcarCerrada(s.id);}}>
-                    Marcar como cerrada
-                  </button>
+                  <div className="sm-action-btns" style={{marginBottom:0}}>
+                    <button
+                      type="button"
+                      className="sm-btn-secundario"
+                      onClick={function(){smImprimirSolicitud(s, (initialUser && (initialUser.nombre||initialUser.username))||"");}}
+                    >
+                      Imprimir solicitud
+                    </button>
+                    <button type="button" className="sm-btn-secundario" disabled={savingId===s.id} onClick={function(){marcarCerrada(s.id);}}>
+                      Marcar como cerrada
+                    </button>
+                  </div>
                 </div>
               )}
 

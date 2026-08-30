@@ -11587,10 +11587,14 @@ function smResumenSolicitud(s){
 function GestionSolicitudesScreen({onBack}){
   const [solicitudes, setSolicitudes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [tecnicos, setTecnicos] = useState([]);
+  const [asignables, setAsignables] = useState([]); // usuarios con cargo Técnico o Auxiliar
   const [filtroEstado, setFiltroEstado] = useState("");
   const [filtroAsignado, setFiltroAsignado] = useState("");
   const [savingId, setSavingId] = useState(null);
+
+  const [accion, setAccion] = useState(null); // {id, modo:'asignar'|'rechazar'}
+  const [tecnicoElegido, setTecnicoElegido] = useState("");
+  const [motivoRechazo, setMotivoRechazo] = useState("");
 
   async function cargarSolicitudes(){
     setLoading(true);
@@ -11605,18 +11609,22 @@ function GestionSolicitudesScreen({onBack}){
     setLoading(false);
   }
 
-  async function cargarTecnicos(){
+  async function cargarAsignables(){
     try{
-      const raw = await btkGet(KS.tec);
-      const list = (raw!==null ? raw : lg(KS.tec, []));
-      setTecnicos(list.length>0 && typeof list[0]==="string" ? [] : list);
+      const {data, error} = await sb.from("usuarios").select("id,nombre,cargo,activo").eq("activo", true).order("nombre");
+      if(error) throw error;
+      const filtrados = (data||[]).filter(function(u){
+        var c = smNormaliza(u.cargo);
+        return c.indexOf("tecnico")!==-1 || c.indexOf("auxiliar")!==-1;
+      });
+      setAsignables(filtrados);
     }catch(ex){
-      console.warn("No se pudo cargar la lista de técnicos", ex);
-      setTecnicos([]);
+      console.warn("No se pudo cargar la lista de usuarios asignables", ex);
+      setAsignables([]);
     }
   }
 
-  useEffect(function(){ cargarSolicitudes(); cargarTecnicos(); },[]);
+  useEffect(function(){ cargarSolicitudes(); cargarAsignables(); },[]);
 
   async function actualizarSolicitud(id, patch){
     setSavingId(id);
@@ -11629,6 +11637,24 @@ function GestionSolicitudesScreen({onBack}){
       cargarSolicitudes(); // revertir mostrando el estado real
     }
     setSavingId(null);
+  }
+
+  function abrirAsignar(id){ setAccion({id:id, modo:"asignar"}); setTecnicoElegido(""); }
+  function abrirRechazar(id){ setAccion({id:id, modo:"rechazar"}); setMotivoRechazo(""); }
+  function cancelarAccion(){ setAccion(null); setTecnicoElegido(""); setMotivoRechazo(""); }
+
+  async function confirmarAsignar(id){
+    if(!tecnicoElegido) return;
+    await actualizarSolicitud(id, {estado:"asignada", asignado_a:tecnicoElegido, motivo_rechazo:null});
+    cancelarAccion();
+  }
+  async function confirmarRechazar(id){
+    if(!motivoRechazo.trim()) return;
+    await actualizarSolicitud(id, {estado:"rechazada", motivo_rechazo:motivoRechazo.trim()});
+    cancelarAccion();
+  }
+  async function marcarCerrada(id){
+    await actualizarSolicitud(id, {estado:"cerrada"});
   }
 
   const asignadosPresentes = useMemo(function(){
@@ -11665,7 +11691,12 @@ function GestionSolicitudesScreen({onBack}){
         .sm-req-resumen{font-size:13.5px;font-weight:600;color:var(--navy);margin-bottom:3px;}
         .sm-req-desc{font-size:12.5px;color:var(--gray);margin-bottom:6px;white-space:pre-wrap;}
         .sm-req-meta{font-size:11px;color:var(--gray);margin-bottom:10px;}
-        .sm-req-controls{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+        .sm-action-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+        .sm-btn-asignar{background:#1D7A3E;color:#fff;border:none;border-radius:8px;padding:10px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12.5px;cursor:pointer;}
+        .sm-btn-rechazar{background:#C0001A;color:#fff;border:none;border-radius:8px;padding:10px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12.5px;cursor:pointer;}
+        .sm-btn-secundario{background:#F2F2F7;color:var(--navy);border:none;border-radius:8px;padding:10px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12.5px;cursor:pointer;}
+        .sm-info-linea{font-size:12.5px;color:var(--navy);font-weight:600;margin-bottom:8px;}
+        .sm-motivo-box{background:#FCE4E7;border-radius:8px;padding:10px 12px;font-size:12px;color:#7A0010;margin-bottom:4px;}
       `}</style>
 
       <div className="sm-hdr">
@@ -11703,6 +11734,8 @@ function GestionSolicitudesScreen({onBack}){
 
         {visibles.map(function(s){
           var meta = SM_ESTADO_META[s.estado] || SM_ESTADO_META.abierta;
+          var accionActiva = accion && accion.id===s.id ? accion.modo : null;
+
           return (
             <div key={s.id} className="sm-req-card">
               <div className="sm-req-top">
@@ -11712,25 +11745,75 @@ function GestionSolicitudesScreen({onBack}){
               <div className="sm-req-resumen">{smResumenSolicitud(s)}</div>
               <div className="sm-req-desc">{s.descripcion}</div>
               <div className="sm-req-meta">{s.solicitante} · {smFormatFechaHora(s.enviado_en)}</div>
-              <div className="sm-req-controls">
-                <select
-                  className="sm-native-select"
-                  disabled={savingId===s.id}
-                  value={s.estado}
-                  onChange={function(e){ actualizarSolicitud(s.id, {estado:e.target.value}); }}
-                >
-                  {SM_ESTADOS.map(function(es){ return <option key={es} value={es}>{SM_ESTADO_META[es].label}</option>; })}
-                </select>
-                <select
-                  className="sm-native-select"
-                  disabled={savingId===s.id}
-                  value={s.asignado_a || ""}
-                  onChange={function(e){ actualizarSolicitud(s.id, {asignado_a: e.target.value || null}); }}
-                >
-                  <option value="">Sin asignar</option>
-                  {tecnicos.map(function(t){ return <option key={t.code || t.name} value={t.name}>{t.name}</option>; })}
-                </select>
-              </div>
+
+              {s.estado==="abierta" && accionActiva===null && (
+                <div className="sm-action-btns">
+                  <button type="button" className="sm-btn-asignar" onClick={function(){abrirAsignar(s.id);}}>Asignar</button>
+                  <button type="button" className="sm-btn-rechazar" onClick={function(){abrirRechazar(s.id);}}>Rechazar</button>
+                </div>
+              )}
+
+              {s.estado==="abierta" && accionActiva==="asignar" && (
+                <div>
+                  <select
+                    className="sm-native-select"
+                    style={{marginBottom:8}}
+                    value={tecnicoElegido}
+                    onChange={function(e){setTecnicoElegido(e.target.value);}}
+                  >
+                    <option value="">Selecciona a quién asignar…</option>
+                    {asignables.map(function(u){ return <option key={u.id} value={u.nombre}>{u.nombre} — {u.cargo}</option>; })}
+                  </select>
+                  <div className="sm-action-btns">
+                    <button type="button" className="sm-btn-secundario" onClick={cancelarAccion}>Cancelar</button>
+                    <button
+                      type="button"
+                      className="sm-btn-asignar"
+                      disabled={!tecnicoElegido || savingId===s.id}
+                      onClick={function(){confirmarAsignar(s.id);}}
+                    >
+                      Confirmar
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {s.estado==="abierta" && accionActiva==="rechazar" && (
+                <div>
+                  <textarea
+                    className="ios-input"
+                    rows={3}
+                    placeholder="Escribe el motivo del rechazo…"
+                    value={motivoRechazo}
+                    onChange={function(e){setMotivoRechazo(e.target.value);}}
+                    style={{resize:"vertical",fontFamily:"inherit",marginBottom:8}}
+                  />
+                  <div className="sm-action-btns">
+                    <button type="button" className="sm-btn-secundario" onClick={cancelarAccion}>Cancelar</button>
+                    <button
+                      type="button"
+                      className="sm-btn-rechazar"
+                      disabled={!motivoRechazo.trim() || savingId===s.id}
+                      onClick={function(){confirmarRechazar(s.id);}}
+                    >
+                      Confirmar rechazo
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {s.estado==="asignada" && (
+                <div>
+                  <div className="sm-info-linea">Asignada a: {s.asignado_a || "—"}</div>
+                  <button type="button" className="sm-btn-secundario" style={{width:"100%"}} disabled={savingId===s.id} onClick={function(){marcarCerrada(s.id);}}>
+                    Marcar como cerrada
+                  </button>
+                </div>
+              )}
+
+              {s.estado==="rechazada" && s.motivo_rechazo && (
+                <div className="sm-motivo-box">Motivo del rechazo: {s.motivo_rechazo}</div>
+              )}
             </div>
           );
         })}

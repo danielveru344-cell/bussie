@@ -11804,7 +11804,10 @@ function GestionSolicitudesScreen({onBack}){
 
               {s.estado==="asignada" && (
                 <div>
-                  <div className="sm-info-linea">Asignada a: {s.asignado_a || "—"}</div>
+                  <div className="sm-info-linea">
+                    Asignada a: {s.asignado_a || "—"}
+                    {s.asignado_en && <span style={{fontWeight:400,color:"var(--gray)"}}> · {smFormatFechaHora(s.asignado_en)}</span>}
+                  </div>
                   <button type="button" className="sm-btn-secundario" style={{width:"100%"}} disabled={savingId===s.id} onClick={function(){marcarCerrada(s.id);}}>
                     Marcar como cerrada
                   </button>
@@ -11812,7 +11815,16 @@ function GestionSolicitudesScreen({onBack}){
               )}
 
               {s.estado==="rechazada" && s.motivo_rechazo && (
-                <div className="sm-motivo-box">Motivo del rechazo: {s.motivo_rechazo}</div>
+                <div className="sm-motivo-box">
+                  Motivo del rechazo: {s.motivo_rechazo}
+                  {s.rechazado_en && <div style={{marginTop:4,opacity:0.8}}>Rechazada el {smFormatFechaHora(s.rechazado_en)}</div>}
+                </div>
+              )}
+
+              {s.estado==="cerrada" && s.cerrado_en && (
+                <div className="sm-info-linea" style={{color:"var(--gray)",fontWeight:400}}>
+                  Cerrada el {smFormatFechaHora(s.cerrado_en)}
+                </div>
               )}
             </div>
           );

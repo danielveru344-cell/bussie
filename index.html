@@ -11387,9 +11387,9 @@ function CrearSolicitudScreen({onBack, initialUser}){
         .sm-hdr-meta{margin-left:auto;text-align:right;flex-shrink:0;}
         .sm-hdr-user{font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:38vw;}
         .sm-hdr-datetime{font-family:Montserrat,sans-serif;font-size:10.5px;color:rgba(255,255,255,0.55);white-space:nowrap;margin-top:1px;}
-        .sm-cons-card{background:#fff;border-radius:16px;padding:18px 24px;margin:16px 20px;box-shadow:0 1px 8px rgba(13,47,92,0.08);text-align:center;border-top:3px solid var(--accent);}
-        .sm-cons-label{font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:1px;}
-        .sm-cons-value{font-family:Montserrat,sans-serif;font-weight:800;font-size:34px;color:var(--navy);letter-spacing:1px;margin-top:4px;}
+        .sm-cons-card{background:#fff;border-radius:14px;padding:13px 18px;margin:14px 20px;box-shadow:0 1px 8px rgba(13,47,92,0.08);border-left:3px solid var(--accent);display:flex;align-items:center;justify-content:space-between;gap:12px;}
+        .sm-cons-label{font-family:Montserrat,sans-serif;font-size:10.5px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:1px;}
+        .sm-cons-value{font-family:Montserrat,sans-serif;font-weight:800;font-size:22px;color:var(--navy);letter-spacing:0.5px;}
         .sm-body{margin:0 20px;}
         .sm-section-title{font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:1px;opacity:0.7;margin:18px 2px 10px;}
         .sm-tipos{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
@@ -11401,6 +11401,7 @@ function CrearSolicitudScreen({onBack, initialUser}){
         .sm-tipo-label{font-family:Montserrat,sans-serif;font-weight:800;font-size:12.5px;color:var(--navy);margin-top:8px;}
         .sm-tipo-desc{font-size:10.5px;color:var(--gray);margin-top:2px;}
         .sm-field{background:#fff;border-radius:14px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 8px rgba(13,47,92,0.06);}
+        .sm-field-divider{height:1px;background:var(--border);margin:14px 0;}
         .sm-req-note{font-size:11.5px;color:var(--gray);margin-top:10px;text-align:center;}
       `}</style>
 
@@ -11441,49 +11442,41 @@ function CrearSolicitudScreen({onBack, initialUser}){
         )}
 
         {tipo==="area" && !loadingListas && (
-          <React.Fragment>
-            <div className="sm-section-title">Área</div>
-            <div className="sm-field">
-              <SmSelect
-                label="Área"
-                placeholder="Buscar área por código o palabra…"
-                options={areaOptions}
-                value={areaSel}
-                onSelect={setAreaSel}
-              />
-            </div>
-          </React.Fragment>
+          <div className="sm-field">
+            <SmSelect
+              label="Área"
+              placeholder="Buscar área por código o palabra…"
+              options={areaOptions}
+              value={areaSel}
+              onSelect={setAreaSel}
+            />
+          </div>
         )}
 
         {tipo==="equipo" && !loadingListas && (
-          <React.Fragment>
-            <div className="sm-section-title">Área y equipo</div>
-            <div className="sm-field">
-              <SmSelect
-                label="Área"
-                placeholder="Buscar área por código o palabra…"
-                options={equipoAreaOptions}
-                value={eqAreaSel}
-                onSelect={function(v){ setEqAreaSel(v); setEqSel(""); }}
-              />
-            </div>
-            <div className="sm-field">
-              <SmSelect
-                label="Equipo"
-                placeholder="Buscar equipo por código o palabra…"
-                options={equipoOptions}
-                value={eqSel}
-                onSelect={setEqSel}
-                disabled={!eqAreaSel}
-                disabledHint="Selecciona primero el área"
-              />
-            </div>
-          </React.Fragment>
+          <div className="sm-field">
+            <SmSelect
+              label="Área"
+              placeholder="Buscar área por código o palabra…"
+              options={equipoAreaOptions}
+              value={eqAreaSel}
+              onSelect={function(v){ setEqAreaSel(v); setEqSel(""); }}
+            />
+            <div className="sm-field-divider"/>
+            <SmSelect
+              label="Equipo"
+              placeholder="Buscar equipo por código o palabra…"
+              options={equipoOptions}
+              value={eqSel}
+              onSelect={setEqSel}
+              disabled={!eqAreaSel}
+              disabledHint="Selecciona primero el área"
+            />
+          </div>
         )}
 
         {tipo==="instrumento" && !loadingListas && (
           <React.Fragment>
-            <div className="sm-section-title">Área e instrumento</div>
             {metEqs.length===0 && (
               <div style={{fontSize:12.5,color:"var(--gray)",marginBottom:10}}>
                 Todavía no hay instrumentos de metrología cargados en el sistema.
@@ -11497,8 +11490,7 @@ function CrearSolicitudScreen({onBack, initialUser}){
                 value={metAreaSel}
                 onSelect={function(v){ setMetAreaSel(v); setMetSel(""); }}
               />
-            </div>
-            <div className="sm-field">
+              <div className="sm-field-divider"/>
               <SmSelect
                 label="Instrumento"
                 placeholder="Buscar instrumento por código o palabra…"
@@ -11513,20 +11505,17 @@ function CrearSolicitudScreen({onBack, initialUser}){
         )}
 
         {tipo && !loadingListas && (
-          <React.Fragment>
-            <div className="sm-section-title">Descripción</div>
-            <div className="sm-field">
-              <div className="ios-input-label">Descripción de la solicitud <span style={{color:"#C0001A"}}>*</span></div>
-              <textarea
-                className="ios-input"
-                rows={4}
-                placeholder="Escribe el detalle de la solicitud…"
-                value={descripcion}
-                onChange={function(e){ setDescripcion(e.target.value); }}
-                style={{resize:"vertical",fontFamily:"inherit"}}
-              />
-            </div>
-          </React.Fragment>
+          <div className="sm-field">
+            <div className="ios-input-label">Descripción de la solicitud <span style={{color:"#C0001A"}}>*</span></div>
+            <textarea
+              className="ios-input"
+              rows={4}
+              placeholder="Escribe el detalle de la solicitud…"
+              value={descripcion}
+              onChange={function(e){ setDescripcion(e.target.value); }}
+              style={{resize:"vertical",fontFamily:"inherit"}}
+            />
+          </div>
         )}
 
         {tipo && <div className="sm-req-note">Todos los campos son obligatorios.</div>}
@@ -11725,6 +11714,7 @@ function GestionSolicitudesScreen({onBack, initialUser}){
 
   async function confirmarAsignar(id){
     if(!tecnicoElegido || !quienAsigna) return;
+    if(!confirm("¿Estás seguro que deseas asignar a "+tecnicoElegido+"?")) return;
     var s = solicitudes.find(function(x){return x.id===id;});
     await actualizarSolicitud(id, {estado:"asignada", asignado_a:tecnicoElegido, motivo_rechazo:null});
     cancelarAccion();
@@ -11739,6 +11729,7 @@ function GestionSolicitudesScreen({onBack, initialUser}){
     cancelarAccion();
   }
   async function marcarCerrada(id){
+    if(!confirm("¿Estás seguro que deseas cerrar esta solicitud?")) return;
     await actualizarSolicitud(id, {estado:"cerrada"});
   }
 

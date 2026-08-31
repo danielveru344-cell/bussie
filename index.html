@@ -11621,30 +11621,22 @@ async function smGenerarFMan006(s, nombreAsigna){
       : "";
     var area = (s.area_nombre||"") + (s.area_codigo?(" ("+s.area_codigo+")"):"");
 
-    ws.getCell("C3").value = s.consecutivo;
+    ws.getCell("B4").value = s.consecutivo;
     ws.getCell("D6").value = area;
     ws.getCell("H6").value = smFormatFecha(s.enviado_en);
     ws.getCell("D12").value = equipo;
+    ws.getCell("H12").value = s.solicitante || "";
     ws.getCell("H15").value = s.asignado_a || "";
+    ws.getCell("D15").value = nombreAsigna || "";
 
     // Descripción: texto libre y de largo variable, así que se activa el
     // ajuste de línea y se agranda la fila para que no quede cortada.
     var celdaDesc = ws.getCell("D8");
     celdaDesc.value = s.descripcion || "";
-    celdaDesc.alignment = Object.assign({}, celdaDesc.alignment, {wrapText:true, vertical:"top"});
+    celdaDesc.alignment = Object.assign({}, celdaDesc.alignment, {wrapText:true, vertical:"top", horizontal:"left"});
     var lineasDesc = Math.max(1, Math.ceil((s.descripcion||"").length / 85));
     var filaDesc = ws.getRow(8);
     filaDesc.height = Math.max(filaDesc.height || 15, lineasDesc * 14);
-
-    // El recuadro "ASIGNA GERENTE Y/O JEFE DE MANTENIMIENTO:" trae el
-    // rótulo ya escrito — se agrega el nombre debajo, en la misma celda,
-    // sin borrar el texto original.
-    if(nombreAsigna){
-      var celdaAsigna = ws.getCell("B14");
-      var textoOriginal = celdaAsigna.value || "ASIGNA GERENTE Y/O JEFE DE MANTENIMIENTO:";
-      celdaAsigna.value = textoOriginal + "\n" + nombreAsigna;
-      celdaAsigna.alignment = Object.assign({}, celdaAsigna.alignment, {wrapText:true, vertical:"top"});
-    }
 
     var outBuffer = await wb.xlsx.writeBuffer();
     var blob = new Blob([outBuffer], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
@@ -11672,6 +11664,7 @@ function GestionSolicitudesScreen({onBack, initialUser}){
 
   const [accion, setAccion] = useState(null); // {id, modo:'asignar'|'rechazar'}
   const [tecnicoElegido, setTecnicoElegido] = useState("");
+  const [quienAsigna, setQuienAsigna] = useState("");
   const [motivoRechazo, setMotivoRechazo] = useState("");
 
   async function cargarSolicitudes(){
@@ -11717,18 +11710,18 @@ function GestionSolicitudesScreen({onBack, initialUser}){
     setSavingId(null);
   }
 
-  function abrirAsignar(id){ setAccion({id:id, modo:"asignar"}); setTecnicoElegido(""); }
+  function abrirAsignar(id){ setAccion({id:id, modo:"asignar"}); setTecnicoElegido(""); setQuienAsigna(""); }
   function abrirRechazar(id){ setAccion({id:id, modo:"rechazar"}); setMotivoRechazo(""); }
-  function cancelarAccion(){ setAccion(null); setTecnicoElegido(""); setMotivoRechazo(""); }
+  function cancelarAccion(){ setAccion(null); setTecnicoElegido(""); setQuienAsigna(""); setMotivoRechazo(""); }
 
   async function confirmarAsignar(id){
-    if(!tecnicoElegido) return;
+    if(!tecnicoElegido || !quienAsigna) return;
     var s = solicitudes.find(function(x){return x.id===id;});
     await actualizarSolicitud(id, {estado:"asignada", asignado_a:tecnicoElegido, motivo_rechazo:null});
     cancelarAccion();
     if(s){
       var ahora = new Date().toISOString();
-      smGenerarFMan006(Object.assign({},s,{estado:"asignada",asignado_a:tecnicoElegido,asignado_en:ahora}), (initialUser && (initialUser.nombre||initialUser.username))||"");
+      smGenerarFMan006(Object.assign({},s,{estado:"asignada",asignado_a:tecnicoElegido,asignado_en:ahora}), quienAsigna);
     }
   }
   async function confirmarRechazar(id){
@@ -11847,12 +11840,22 @@ function GestionSolicitudesScreen({onBack, initialUser}){
                     <option value="">Selecciona a quién asignar…</option>
                     {asignables.map(function(u){ return <option key={u.id} value={u.nombre}>{u.nombre} — {u.cargo}</option>; })}
                   </select>
+                  <select
+                    className="sm-native-select"
+                    style={{marginBottom:8}}
+                    value={quienAsigna}
+                    onChange={function(e){setQuienAsigna(e.target.value);}}
+                  >
+                    <option value="">¿Quién asigna?…</option>
+                    <option value="Martin Burgos">Martin Burgos</option>
+                    <option value="Humberto Held">Humberto Held</option>
+                  </select>
                   <div className="sm-action-btns">
                     <button type="button" className="sm-btn-secundario" onClick={cancelarAccion}>Cancelar</button>
                     <button
                       type="button"
                       className="sm-btn-asignar"
-                      disabled={!tecnicoElegido || savingId===s.id}
+                      disabled={!tecnicoElegido || !quienAsigna || savingId===s.id}
                       onClick={function(){confirmarAsignar(s.id);}}
                     >
                       Confirmar

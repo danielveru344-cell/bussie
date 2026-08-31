@@ -11387,17 +11387,18 @@ function CrearSolicitudScreen({onBack, initialUser}){
         .sm-hdr-meta{margin-left:auto;text-align:right;flex-shrink:0;}
         .sm-hdr-user{font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:38vw;}
         .sm-hdr-datetime{font-family:Montserrat,sans-serif;font-size:10.5px;color:rgba(255,255,255,0.55);white-space:nowrap;margin-top:1px;}
-        .sm-cons-card{background:#fff;border-radius:16px;padding:20px 24px;margin:16px 20px;box-shadow:0 1px 8px rgba(13,47,92,0.08);text-align:center;}
+        .sm-cons-card{background:#fff;border-radius:16px;padding:18px 24px;margin:16px 20px;box-shadow:0 1px 8px rgba(13,47,92,0.08);text-align:center;border-top:3px solid var(--accent);}
         .sm-cons-label{font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:1px;}
         .sm-cons-value{font-family:Montserrat,sans-serif;font-weight:800;font-size:34px;color:var(--navy);letter-spacing:1px;margin-top:4px;}
         .sm-body{margin:0 20px;}
         .sm-section-title{font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:1px;opacity:0.7;margin:18px 2px 10px;}
         .sm-tipos{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
-        .sm-tipo-card{background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:16px 8px;text-align:center;cursor:pointer;transition:all .15s;}
+        .sm-tipo-card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:16px 8px;text-align:center;cursor:pointer;transition:all .15s;box-shadow:0 1px 8px rgba(13,47,92,0.05);}
         .sm-tipo-card:active{transform:scale(0.97);}
         .sm-tipo-card.sel{border-color:var(--navy);background:var(--light);box-shadow:0 2px 10px rgba(13,47,92,0.14);}
-        .sm-tipo-icon{font-size:24px;}
-        .sm-tipo-label{font-family:Montserrat,sans-serif;font-weight:800;font-size:12.5px;color:var(--navy);margin-top:6px;}
+        .sm-tipo-icon{font-size:20px;width:42px;height:42px;border-radius:12px;background:var(--light);display:flex;align-items:center;justify-content:center;margin:0 auto;}
+        .sm-tipo-card.sel .sm-tipo-icon{background:#fff;}
+        .sm-tipo-label{font-family:Montserrat,sans-serif;font-weight:800;font-size:12.5px;color:var(--navy);margin-top:8px;}
         .sm-tipo-desc{font-size:10.5px;color:var(--gray);margin-top:2px;}
         .sm-field{background:#fff;border-radius:14px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 8px rgba(13,47,92,0.06);}
         .sm-req-note{font-size:11.5px;color:var(--gray);margin-top:10px;text-align:center;}
@@ -11585,11 +11586,19 @@ const SM_ESTADO_META = {
   rechazada: {label:"Rechazada", color:"#C0001A", bg:"#FCE4E7"},
   cerrada:   {label:"Cerrada",   color:"#1D7A3E", bg:"#E1F5E9"}
 };
+const TIPO_LABEL = {area:"Área", equipo:"Equipo", instrumento:"Instrumento"};
 
 function smResumenSolicitud(s){
   if(s.tipo==="area") return s.area_nombre || "—";
   var base = s.area_nombre ? (s.area_nombre+" — ") : "";
   return base + (s.item_nombre || "—");
+}
+
+function smIniciales(nombre){
+  var partes = (nombre||"").trim().split(/\s+/).filter(Boolean);
+  if(partes.length===0) return "?";
+  if(partes.length===1) return partes[0].slice(0,2).toUpperCase();
+  return (partes[0][0]+partes[partes.length-1][0]).toUpperCase();
 }
 
 // ── Formato oficial F-MAN-006 (Solicitud de Trabajo para Mantenimiento) ──────
@@ -11760,19 +11769,26 @@ function GestionSolicitudesScreen({onBack, initialUser}){
         .sm-section-title{font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:1px;opacity:0.7;margin:18px 2px 10px;}
         .sm-filters{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
         .sm-native-select{width:100%;background:var(--lighter);border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;font-size:13px;font-family:inherit;color:var(--navy);}
-        .sm-req-card{background:#fff;border-radius:14px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 8px rgba(13,47,92,0.06);}
-        .sm-req-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;}
-        .sm-req-cons{font-family:Montserrat,sans-serif;font-weight:800;font-size:14px;color:var(--navy);}
-        .sm-req-badge{font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:100px;white-space:nowrap;}
-        .sm-req-resumen{font-size:13.5px;font-weight:600;color:var(--navy);margin-bottom:3px;}
-        .sm-req-desc{font-size:12.5px;color:var(--gray);margin-bottom:6px;white-space:pre-wrap;}
-        .sm-req-meta{font-size:11px;color:var(--gray);margin-bottom:10px;}
-        .sm-action-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+        .sm-req-card{background:#fff;border-radius:16px;padding:16px 18px;margin-bottom:12px;box-shadow:0 1px 10px rgba(13,47,92,0.07);border-left:4px solid var(--border);}
+        .sm-req-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:9px;}
+        .sm-req-titlewrap{display:flex;flex-direction:column;gap:2px;min-width:0;}
+        .sm-req-cons{font-family:Montserrat,sans-serif;font-weight:800;font-size:15px;color:var(--navy);letter-spacing:0.2px;}
+        .sm-req-tipo{font-size:10.5px;color:var(--gray);font-weight:600;}
+        .sm-req-badge{font-size:10.5px;font-weight:700;padding:4px 10px 4px 8px;border-radius:100px;white-space:nowrap;display:flex;align-items:center;gap:5px;flex-shrink:0;}
+        .sm-req-badge-dot{width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block;flex-shrink:0;}
+        .sm-req-resumen{font-size:13.5px;font-weight:700;color:var(--navy);margin-bottom:4px;}
+        .sm-req-desc{font-size:12.5px;color:var(--gray);line-height:1.5;margin-bottom:12px;white-space:pre-wrap;}
+        .sm-req-footer{display:flex;align-items:center;gap:10px;padding-top:11px;border-top:1px solid var(--border);}
+        .sm-req-avatar{width:28px;height:28px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;font-weight:800;font-size:11px;flex-shrink:0;}
+        .sm-req-footer-text{display:flex;flex-direction:column;gap:1px;min-width:0;}
+        .sm-req-solicitante{font-size:12px;font-weight:700;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .sm-req-fecha{font-size:10.5px;color:var(--gray);}
+        .sm-action-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;}
         .sm-btn-asignar{background:#1D7A3E;color:#fff;border:none;border-radius:8px;padding:10px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12.5px;cursor:pointer;}
         .sm-btn-rechazar{background:#C0001A;color:#fff;border:none;border-radius:8px;padding:10px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12.5px;cursor:pointer;}
         .sm-btn-secundario{background:#F2F2F7;color:var(--navy);border:none;border-radius:8px;padding:10px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12.5px;cursor:pointer;}
-        .sm-info-linea{font-size:12.5px;color:var(--navy);font-weight:600;margin-bottom:8px;}
-        .sm-motivo-box{background:#FCE4E7;border-radius:8px;padding:10px 12px;font-size:12px;color:#7A0010;margin-bottom:4px;}
+        .sm-info-linea{font-size:12.5px;color:var(--navy);font-weight:600;margin-top:11px;}
+        .sm-motivo-box{background:#FCE4E7;border-radius:10px;padding:10px 12px;font-size:12px;color:#7A0010;margin-top:11px;}
       `}</style>
 
       <div className="sm-hdr">
@@ -11813,14 +11829,25 @@ function GestionSolicitudesScreen({onBack, initialUser}){
           var accionActiva = accion && accion.id===s.id ? accion.modo : null;
 
           return (
-            <div key={s.id} className="sm-req-card">
+            <div key={s.id} className="sm-req-card" style={{borderLeftColor:meta.color}}>
               <div className="sm-req-top">
-                <span className="sm-req-cons">{s.consecutivo}</span>
-                <span className="sm-req-badge" style={{color:meta.color,background:meta.bg}}>{meta.label}</span>
+                <div className="sm-req-titlewrap">
+                  <span className="sm-req-cons">{s.consecutivo}</span>
+                  <span className="sm-req-tipo">{TIPO_LABEL[s.tipo]}</span>
+                </div>
+                <span className="sm-req-badge" style={{color:meta.color,background:meta.bg}}>
+                  <span className="sm-req-badge-dot"/>{meta.label}
+                </span>
               </div>
               <div className="sm-req-resumen">{smResumenSolicitud(s)}</div>
               <div className="sm-req-desc">{s.descripcion}</div>
-              <div className="sm-req-meta">{s.solicitante} · {smFormatFechaHora(s.enviado_en)}</div>
+              <div className="sm-req-footer">
+                <div className="sm-req-avatar">{smIniciales(s.solicitante)}</div>
+                <div className="sm-req-footer-text">
+                  <div className="sm-req-solicitante">{s.solicitante}</div>
+                  <div className="sm-req-fecha">{smFormatFechaHora(s.enviado_en)}</div>
+                </div>
+              </div>
 
               {s.estado==="abierta" && accionActiva===null && (
                 <div className="sm-action-btns">
@@ -11956,8 +11983,6 @@ function EstadoSolicitudesScreen({onBack}){
     return Array.from(set).sort();
   },[solicitudes]);
 
-  const TIPO_LABEL = {area:"Área", equipo:"Equipo", instrumento:"Instrumento"};
-
   const visibles = useMemo(function(){
     var q = smNormaliza(busqueda);
     return solicitudes.filter(function(s){
@@ -11985,15 +12010,22 @@ function EstadoSolicitudesScreen({onBack}){
         .sm-section-title{font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:1px;opacity:0.7;margin:18px 2px 10px;}
         .sm-native-select{width:100%;background:var(--lighter);border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;font-size:13px;font-family:inherit;color:var(--navy);}
         .sm-filters3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;}
-        .sm-req-card{background:#fff;border-radius:14px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 8px rgba(13,47,92,0.06);}
-        .sm-req-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;}
-        .sm-req-cons{font-family:Montserrat,sans-serif;font-weight:800;font-size:14px;color:var(--navy);}
-        .sm-req-badge{font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:100px;white-space:nowrap;}
-        .sm-req-resumen{font-size:13.5px;font-weight:600;color:var(--navy);margin-bottom:3px;}
-        .sm-req-desc{font-size:12.5px;color:var(--gray);margin-bottom:6px;white-space:pre-wrap;}
-        .sm-req-meta{font-size:11px;color:var(--gray);}
-        .sm-info-linea{font-size:12px;color:var(--navy);font-weight:600;margin-top:8px;}
-        .sm-motivo-box{background:#FCE4E7;border-radius:8px;padding:10px 12px;font-size:12px;color:#7A0010;margin-top:8px;}
+        .sm-req-card{background:#fff;border-radius:16px;padding:16px 18px;margin-bottom:12px;box-shadow:0 1px 10px rgba(13,47,92,0.07);border-left:4px solid var(--border);}
+        .sm-req-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:9px;}
+        .sm-req-titlewrap{display:flex;flex-direction:column;gap:2px;min-width:0;}
+        .sm-req-cons{font-family:Montserrat,sans-serif;font-weight:800;font-size:15px;color:var(--navy);letter-spacing:0.2px;}
+        .sm-req-tipo{font-size:10.5px;color:var(--gray);font-weight:600;}
+        .sm-req-badge{font-size:10.5px;font-weight:700;padding:4px 10px 4px 8px;border-radius:100px;white-space:nowrap;display:flex;align-items:center;gap:5px;flex-shrink:0;}
+        .sm-req-badge-dot{width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block;flex-shrink:0;}
+        .sm-req-resumen{font-size:13.5px;font-weight:700;color:var(--navy);margin-bottom:4px;}
+        .sm-req-desc{font-size:12.5px;color:var(--gray);line-height:1.5;margin-bottom:12px;white-space:pre-wrap;}
+        .sm-req-footer{display:flex;align-items:center;gap:10px;padding-top:11px;border-top:1px solid var(--border);}
+        .sm-req-avatar{width:28px;height:28px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;font-weight:800;font-size:11px;flex-shrink:0;}
+        .sm-req-footer-text{display:flex;flex-direction:column;gap:1px;min-width:0;}
+        .sm-req-solicitante{font-size:12px;font-weight:700;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .sm-req-fecha{font-size:10.5px;color:var(--gray);}
+        .sm-info-linea{font-size:12px;color:var(--navy);font-weight:600;margin-top:11px;}
+        .sm-motivo-box{background:#FCE4E7;border-radius:10px;padding:10px 12px;font-size:12px;color:#7A0010;margin-top:11px;}
       `}</style>
 
       <div className="sm-hdr">
@@ -12047,14 +12079,25 @@ function EstadoSolicitudesScreen({onBack}){
         {visibles.map(function(s){
           var meta = SM_ESTADO_META[s.estado] || SM_ESTADO_META.abierta;
           return (
-            <div key={s.id} className="sm-req-card">
+            <div key={s.id} className="sm-req-card" style={{borderLeftColor:meta.color}}>
               <div className="sm-req-top">
-                <span className="sm-req-cons">{s.consecutivo}</span>
-                <span className="sm-req-badge" style={{color:meta.color,background:meta.bg}}>{meta.label}</span>
+                <div className="sm-req-titlewrap">
+                  <span className="sm-req-cons">{s.consecutivo}</span>
+                  <span className="sm-req-tipo">{TIPO_LABEL[s.tipo]}</span>
+                </div>
+                <span className="sm-req-badge" style={{color:meta.color,background:meta.bg}}>
+                  <span className="sm-req-badge-dot"/>{meta.label}
+                </span>
               </div>
-              <div className="sm-req-resumen">{TIPO_LABEL[s.tipo]} · {smResumenSolicitud(s)}</div>
+              <div className="sm-req-resumen">{smResumenSolicitud(s)}</div>
               <div className="sm-req-desc">{s.descripcion}</div>
-              <div className="sm-req-meta">Pedida por {s.solicitante} · {smFormatFechaHora(s.enviado_en)}</div>
+              <div className="sm-req-footer">
+                <div className="sm-req-avatar">{smIniciales(s.solicitante)}</div>
+                <div className="sm-req-footer-text">
+                  <div className="sm-req-solicitante">{s.solicitante}</div>
+                  <div className="sm-req-fecha">{smFormatFechaHora(s.enviado_en)}</div>
+                </div>
+              </div>
 
               {s.estado==="asignada" && (
                 <div className="sm-info-linea">
@@ -12109,9 +12152,9 @@ function SolicitudesMetrologiaApp({onBack, initialUser}){
         .sm-hdr-sub{font-family:Montserrat,sans-serif;font-size:9px;color:rgba(255,255,255,0.45);letter-spacing:1.5px;text-transform:uppercase;margin-top:1px;}
         .sm-body{margin:0 20px;}
         .sm-section-title{font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:1px;opacity:0.7;margin:18px 2px 10px;}
-        .sm-sub-card{background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:all .15s;}
+        .sm-sub-card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:16px 18px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:all .15s;box-shadow:0 1px 8px rgba(13,47,92,0.05);}
         .sm-sub-card:active{transform:scale(0.98);}
-        .sm-sub-icon{font-size:26px;flex-shrink:0;}
+        .sm-sub-icon{font-size:22px;flex-shrink:0;width:46px;height:46px;border-radius:13px;background:var(--light);display:flex;align-items:center;justify-content:center;}
         .sm-sub-label{font-family:Montserrat,sans-serif;font-weight:800;font-size:14px;color:var(--navy);}
         .sm-sub-desc{font-size:12px;color:var(--gray);margin-top:2px;}
         .sm-sub-chev{margin-left:auto;color:var(--gray);font-size:20px;flex-shrink:0;}

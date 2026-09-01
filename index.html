@@ -824,6 +824,30 @@ input,select,textarea,button{font-family:inherit;outline:none;}
   }
   .nav-act-label { display: inline; }
 }
+
+/* Selector de módulos: lista en móvil, grid en desktop */
+.module-grid{
+  display:flex;flex-direction:column;gap:13px;
+  width:100%;max-width:390px;position:relative;
+  margin:0 auto;
+}
+@media (min-width: 768px){
+  .module-grid{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    max-width:680px;
+    gap:16px;
+  }
+  .module-grid .module-card{
+    align-items:flex-start;
+    flex-direction:column;
+    gap:14px !important;
+    padding:22px 20px !important;
+  }
+  .module-grid .module-card .module-card-chevron{
+    position:absolute;top:20px;right:18px;
+  }
+}
 </style>
 <style>
 /* === Requerimientos Planta === */
@@ -11064,6 +11088,17 @@ function smAreaCodeFromEquipoCode(code){
   var m = code.match(/^(.*)-(\d+)$/);
   return m ? m[1] : code;
 }
+// Normaliza el código de área a su forma canónica (la misma que usa AREAS_LOC).
+// "EP-322" -> "322" | "FL-AP-504" -> "AP504" | "AT-AP500" -> "AP500"
+// Importante: si el código incluye "AP" hay que conservarlo, porque "504" y "AP504"
+// son áreas distintas (la planta normal y el anexo AP comparten numeración).
+function smAreaToken(str){
+  var mAp = str.match(/AP-?(\d+[A-Za-z]?)$/i);
+  if(mAp) return "AP"+mAp[1];
+  var mNum = str.match(/(\d+[A-Za-z]?)$/);
+  if(mNum) return mNum[1];
+  return str;
+}
 function smParseAreaLoc(str){
   var m = str.match(/^(.*)\(([^)]+)\)\s*$/);
   if(m) return {nombre:m[1].trim(), codigo:m[2].trim()};
@@ -11087,13 +11122,11 @@ function smFormatFecha(iso){
   return pad2(d.getDate())+"/"+pad2(d.getMonth()+1)+"/"+pad2(d.getFullYear()%100);
 }
 function smFriendlyAreaLabel(areaCode, locList){
-  var m = areaCode.match(/(\d+)$/);
-  if(m){
-    var num = m[1];
-    for(var i=0;i<locList.length;i++){
-      var p = smParseAreaLoc(locList[i]);
-      if(p.codigo===num) return p.nombre+" ("+areaCode+")";
-    }
+  // areaCode ya viene normalizado (ver smAreaToken) — se compara tal cual,
+  // sin quitar el prefijo "AP", para no confundir "504" con "AP504".
+  for(var i=0;i<locList.length;i++){
+    var p = smParseAreaLoc(locList[i]);
+    if(p.codigo===areaCode) return p.nombre+" ("+areaCode+")";
   }
   return areaCode;
 }
@@ -11103,7 +11136,7 @@ function smGroupByArea(list, locList){
   var groups = {}; var order=[];
   (list||[]).forEach(function(raw){
     var pc = smParseCodeName(raw);
-    var areaCode = pc.name ? smAreaCodeFromEquipoCode(pc.code) : "";
+    var areaCode = pc.name ? smAreaToken(smAreaCodeFromEquipoCode(pc.code)) : "";
     var key = areaCode || "__sin_area__";
     if(!groups[key]){
       groups[key] = {
@@ -12321,9 +12354,9 @@ function SuiteSelector({onSelect, currentUser, onLogout}){
       </div>
 
       {/* Module cards */}
-      <div style={{display:"flex",flexDirection:"column",gap:13,width:"100%",maxWidth:390,position:"relative"}}>
+      <div className="module-grid">
         {modules.map(function(m){return(
-          <button key={m.id} onClick={function(){onSelect(m.id);}}
+          <button key={m.id} className="module-card" onClick={function(){onSelect(m.id);}}
             style={{
               background:"rgba(255,255,255,0.075)",
               backdropFilter:"blur(24px)",WebkitBackdropFilter:"blur(24px)",
@@ -12334,7 +12367,7 @@ function SuiteSelector({onSelect, currentUser, onLogout}){
               color:"#fff",display:"flex",alignItems:"center",gap:17,
               transition:"all 0.22s cubic-bezier(0.25,0.46,0.45,0.94)",
               boxShadow:"0 2px 24px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.09)",
-              outline:"none",
+              outline:"none",position:"relative",
             }}
             onMouseEnter={function(e){
               e.currentTarget.style.background="rgba(255,255,255,0.13)";
@@ -12391,7 +12424,7 @@ function SuiteSelector({onSelect, currentUser, onLogout}){
             </div>
 
             {/* Chevron */}
-            <div style={{flexShrink:0,paddingLeft:4}}>{IconChevron}</div>
+            <div className="module-card-chevron" style={{flexShrink:0,paddingLeft:4}}>{IconChevron}</div>
           </button>
         );})}
       </div>

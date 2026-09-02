@@ -13293,7 +13293,7 @@ function _updateOrden(){_updateOrden=_asyncToGenerator(/*#__PURE__*/_regenerator
 // Los equipos de producción vienen como "COD-ÁREA-N - NOMBRE" (ej: "EP-322-1 - ENVASADORA PPR").
 // El código de área es todo antes del último "-N". Con ese número final buscamos el
 // nombre real del área en AREAS_LOC ("NOMBRE (322)") para mostrar una etiqueta legible.
-function smParseCodeName(str){var idx=str.indexOf(" - ");if(idx===-1)return{code:str.trim(),name:""};return{code:str.slice(0,idx).trim(),name:str.slice(idx+3).trim()};}function smAreaCodeFromEquipoCode(code){var m=code.match(/^(.*)-(\d+)$/);return m?m[1]:code;}// Normaliza el código de área a su forma canónica (la misma que usa AREAS_LOC).
+function smParseCodeName(str){str=(str||"").trim();var idx=str.indexOf(" - ");if(idx!==-1)return{code:str.slice(0,idx).trim(),name:str.slice(idx+3).trim()};var idx2=str.indexOf(" – ");if(idx2!==-1)return{code:str.slice(0,idx2).trim(),name:str.slice(idx2+3).trim()};var m=str.match(/^(\S+)\s+(.*)$/);if(m)return{code:m[1].trim(),name:m[2].trim()};return{code:str,name:""};}function smAreaCodeFromEquipoCode(code){var m=code.match(/^(.*)-(\d+)$/);return m?m[1]:code;}// Normaliza el código de área a su forma canónica (la misma que usa AREAS_LOC).
 // "EP-322" -> "322" | "FL-AP-504" -> "AP504" | "AT-AP500" -> "AP500"
 // Importante: si el código incluye "AP" hay que conservarlo, porque "504" y "AP504"
 // son áreas distintas (la planta normal y el anexo AP comparten numeración).

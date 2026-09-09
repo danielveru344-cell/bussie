@@ -4535,6 +4535,10 @@ function SolicitudesTab(_ref36) {
     _useState76 = _slicedToArray(_useState75, 2),
     proveedoresList = _useState76[0],
     setProveedoresList = _useState76[1]; // lista de proveedores registrados
+  var _useStateInd = useState(false),
+    _useStateInd2 = _slicedToArray(_useStateInd, 2),
+    verIndicadores = _useStateInd2[0],
+    setVerIndicadores = _useStateInd2[1]; // toggle módulo de indicadores
 
   useEffect(function () {
     sb.from("proveedores").select("id,nombre").order("nombre").then(function (_ref37) {
@@ -4877,12 +4881,40 @@ function SolicitudesTab(_ref36) {
     style: {
       margin: 0
     }
-  }, "\uD83D\uDCCB Solicitudes de Repuestos"), /*#__PURE__*/React.createElement("button", {
+  }, "\uD83D\uDCCB Solicitudes de Repuestos"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: verIndicadores ? "ios-btn ios-btn-blue ios-btn-sm" : "ios-btn ios-btn-sm",
+    onClick: function onClick() {
+      return setVerIndicadores(!verIndicadores);
+    }
+  }, "\uD83D\uDCCA Indicadores"), /*#__PURE__*/React.createElement("button", {
     className: "ios-btn ios-btn-blue ios-btn-sm",
     onClick: function onClick() {
       return setModal("add");
     }
-  }, "+ Nueva solicitud")), function () {
+  }, "+ Nueva solicitud"))), verIndicadores && /*#__PURE__*/React.createElement("div", {
+    className: "stat-card",
+    style: {
+      padding: 16,
+      display: "flex",
+      flexDirection: "column",
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "section-hdr",
+    style: {
+      margin: 0
+    }
+  }, "\uD83D\uDCCA Indicadores de Solicitudes"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: "#8E8E93",
+      fontSize: 14
+    }
+  }, "M\u00F3dulo en construcci\u00F3n. Pr\u00F3ximamente aqu\u00ED se mostrar\u00E1n los indicadores de solicitudes.")), function () {
     var pend = pendientes;
     var compra = conteos["solicitada_compra"] || 0;
     var entregadas = conteos["entregada"] || 0;
